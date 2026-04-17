@@ -1,0 +1,4 @@
+node_modules/
+.expo/
+create_log.txt
+dist/

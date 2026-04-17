@@ -1,18 +1,22 @@
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { DataContext } from '../../context/DataContext';
-import { theme } from '../../utils/theme';
+import { ThemeContext } from '../../context/ThemeContext';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import Badge from '../../components/Badge';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { formatCurrency } from '../../utils/currency';
 
 export default function DashboardScreen() {
-  const { user, logout } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const { clubs, events, budgets } = useContext(DataContext);
+  const { theme } = useContext(ThemeContext);
   
+  const styles = useMemo(() => getStyles(theme), [theme]);
+
   const totalIncome = budgets.filter(b => b.type === 'income').reduce((a, b) => a + b.amount, 0);
   const totalExpense = budgets.filter(b => b.type === 'expense').reduce((a, b) => a + b.amount, 0);
 
@@ -49,20 +53,20 @@ export default function DashboardScreen() {
         
         <View style={styles.financeRow}>
           <Text style={theme.typography.body}>Income</Text>
-          <Text style={[theme.typography.h3, { color: theme.colors.secondary }]}>+${totalIncome}</Text>
+          <Text style={[theme.typography.h3, { color: theme.colors.secondary }]}>+{formatCurrency(totalIncome)}</Text>
         </View>
         <View style={styles.divider} />
         
         <View style={styles.financeRow}>
           <Text style={theme.typography.body}>Expenses</Text>
-          <Text style={[theme.typography.h3, { color: theme.colors.error }]}>-${totalExpense}</Text>
+          <Text style={[theme.typography.h3, { color: theme.colors.error }]}>-{formatCurrency(totalExpense)}</Text>
         </View>
         <View style={styles.divider} />
         
         <View style={styles.financeRow}>
           <Text style={theme.typography.h3}>Net Balance</Text>
           <Text style={[theme.typography.h2, { color: (totalIncome - totalExpense) >= 0 ? theme.colors.text : theme.colors.error }]}>
-            ${totalIncome - totalExpense}
+            {formatCurrency(totalIncome - totalExpense)}
           </Text>
         </View>
       </Card>
@@ -92,13 +96,12 @@ export default function DashboardScreen() {
         </Card>
       </View>
       
-      <Button title="Log Out" variant="danger" onPress={logout} icon="logout" />
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   gradientHeader: { padding: theme.spacing.l, paddingTop: theme.spacing.xxl, borderBottomLeftRadius: theme.borderRadius.xl, borderBottomRightRadius: theme.borderRadius.xl, ...theme.shadows.medium },
   grid: { flexDirection: 'row', gap: theme.spacing.m },
