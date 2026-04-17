@@ -40,12 +40,35 @@ export const DataProvider = ({ children }) => {
     } catch (e) { return { success: false }; }
   };
 
+  const editClub = async (clubId, clubData) => {
+    try {
+      const res = await api.put(`/clubs/${clubId}`, clubData);
+      setClubs(clubs.map(c => c.id === clubId ? res.data : c));
+      return { success: true };
+    } catch (e) { return { success: false }; }
+  };
+
+  const deleteClub = async (clubId) => {
+    try {
+      await api.delete(`/clubs/${clubId}`);
+      setClubs(clubs.filter(c => c.id !== clubId));
+      return { success: true };
+    } catch (e) { return { success: false }; }
+  };
+
   const joinClub = async (clubId) => {
     try {
       const res = await api.post(`/clubs/${clubId}/join`);
-      const updatedList = clubs.map(c => c.id === clubId ? res.data : c);
-      setClubs([...updatedList]);
+      setClubs(clubs.map(c => c.id === clubId ? res.data : c));
       await addXP(10); // +10 XP for joining club
+      return { success: true };
+    } catch (e) { return { success: false }; }
+  };
+
+  const leaveClub = async (clubId) => {
+    try {
+      const res = await api.post(`/clubs/${clubId}/leave`);
+      setClubs(clubs.map(c => c.id === clubId ? res.data : c));
       return { success: true };
     } catch (e) { return { success: false }; }
   };
@@ -59,11 +82,26 @@ export const DataProvider = ({ children }) => {
      } catch (e) { return { success: false }; }
   };
 
+  const editEvent = async (eventId, eventData) => {
+    try {
+      const res = await api.put(`/events/${eventId}`, eventData);
+      setEvents(events.map(e => e.id === eventId ? res.data : e));
+      return { success: true };
+    } catch (e) { return { success: false }; }
+  };
+
+  const deleteEvent = async (eventId) => {
+    try {
+      await api.delete(`/events/${eventId}`);
+      setEvents(events.filter(e => e.id !== eventId));
+      return { success: true };
+    } catch (e) { return { success: false }; }
+  };
+
   const joinEvent = async (eventId) => {
      try {
        const res = await api.post(`/events/${eventId}/join`);
-       const updatedEvents = events.map(e => e.id === eventId ? res.data : e);
-       setEvents([...updatedEvents]);
+       setEvents(events.map(e => e.id === eventId ? res.data : e));
        return { success: true };
      } catch (e) { return { success: false }; }
   };
@@ -93,12 +131,44 @@ export const DataProvider = ({ children }) => {
     } catch (e) { return { success: false }; }
   };
 
+  const editBudget = async (budgetId, budgetData) => {
+    try {
+      const res = await api.put(`/budgets/${budgetId}`, budgetData);
+      setBudgets(budgets.map(b => b.id === budgetId ? res.data : b));
+      return { success: true };
+    } catch (e) { return { success: false }; }
+  };
+
+  const deleteBudget = async (budgetId) => {
+    try {
+      await api.delete(`/budgets/${budgetId}`);
+      setBudgets(budgets.filter(b => b.id !== budgetId));
+      return { success: true };
+    } catch (e) { return { success: false }; }
+  };
+
   const createNotification = async (notifData) => {
      try {
        const res = await api.post('/notifications', notifData);
        setNotifications([res.data, ...notifications]);
        return { success: true };
      } catch (e) { return { success: false }; }
+  };
+
+  const editNotification = async (notifId, notifData) => {
+    try {
+      const res = await api.put(`/notifications/${notifId}`, notifData);
+      setNotifications(notifications.map(n => n.id === notifId ? res.data : n));
+      return { success: true };
+    } catch (e) { return { success: false }; }
+  };
+
+  const deleteNotification = async (notifId) => {
+    try {
+      await api.delete(`/notifications/${notifId}`);
+      setNotifications(notifications.filter(n => n.id !== notifId));
+      return { success: true };
+    } catch (e) { return { success: false }; }
   };
 
   const addXP = async (amount, userId = null) => {
@@ -110,8 +180,11 @@ export const DataProvider = ({ children }) => {
   return (
     <DataContext.Provider value={{
       clubs, events, notifications, budgets, certificates, leaderboard,
-      createClub, joinClub, createEvent, joinEvent, 
-      getAttendance, markAttendance, addBudget, createNotification,
+      createClub, editClub, deleteClub, joinClub, leaveClub,
+      createEvent, editEvent, deleteEvent, joinEvent, 
+      getAttendance, markAttendance, 
+      addBudget, editBudget, deleteBudget,
+      createNotification, editNotification, deleteNotification,
       addXP, refreshData: fetchData
     }}>
       {children}

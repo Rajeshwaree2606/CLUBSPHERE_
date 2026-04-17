@@ -1,7 +1,58 @@
 export const initialClubs = [
-  { id: '1', name: 'Coding Club', description: 'For tech enthusiasts and developers.', adminId: 'admin1', memberCount: 120, joined: false },
-  { id: '2', name: 'Photography Club', description: 'Capture moments and learn photography.', adminId: 'admin1', memberCount: 50, joined: true },
-  { id: '3', name: 'Robotics Club', description: 'Build and program robots.', adminId: 'admin2', memberCount: 80, joined: false }
+  { 
+    id: '1', 
+    name: 'Media Club', 
+    description: 'Tell the Polaris story - one frame at a time.\nIf something memorable happens on campus, this team captures it.',
+    icon: 'camera-alt',
+    adminId: 'admin1', 
+    memberCount: 120, 
+    joined: false 
+  },
+  { 
+    id: '2', 
+    name: 'Tech Club (Tesseract)', 
+    description: 'Where curiosity becomes code - and code becomes something real.\nHackathons, workshops, and real-world building.',
+    icon: 'laptop-code',
+    adminId: 'admin1', 
+    memberCount: 150, 
+    joined: true 
+  },
+  { 
+    id: '3', 
+    name: 'Sports & E-Sports Club', 
+    description: 'Compete hard. Play often. Show up for each other.',
+    icon: 'trophy',
+    adminId: 'admin2', 
+    memberCount: 200, 
+    joined: false 
+  },
+  { 
+    id: '4', 
+    name: 'Entrepreneurship Club', 
+    description: 'From idea to pitch - think like a builder and create impact.',
+    icon: 'lightbulb',
+    adminId: 'admin2', 
+    memberCount: 85, 
+    joined: false 
+  },
+  { 
+    id: '5', 
+    name: 'Student Council', 
+    description: 'Your voice on campus, formalised.',
+    icon: 'users',
+    adminId: 'admin1', 
+    memberCount: 45, 
+    joined: false 
+  },
+  { 
+    id: '6', 
+    name: 'Events OG OC', 
+    description: 'The team behind Polaris\'s biggest events and experiences.',
+    icon: 'star',
+    adminId: 'admin3', 
+    memberCount: 60, 
+    joined: false 
+  }
 ];
 
 export const initialEvents = [

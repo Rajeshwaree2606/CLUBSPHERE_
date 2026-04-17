@@ -1,15 +1,19 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
+import React, { useContext, useEffect, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { DataContext } from '../../context/DataContext';
-import { theme } from '../../utils/theme';
+import { ThemeContext } from '../../context/ThemeContext';
 import Toast from 'react-native-toast-message';
 import Button from '../../components/Button';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-export default function EventAttendanceScreen({ route }) {
+export default function EventAttendanceScreen({ route, navigation }) {
   const { eventId } = route.params;
   const { events, getAttendance, markAttendance } = useContext(DataContext);
+  const { theme } = useContext(ThemeContext);
   const [attendees, setAttendees] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const styles = useMemo(() => getStyles(theme), [theme]);
 
   const event = events.find(e => e.id === eventId);
 
@@ -76,7 +80,12 @@ export default function EventAttendanceScreen({ route }) {
       <View style={styles.handle} />
       
       <View style={styles.header}>
-        <Text style={theme.typography.h2}>Attendance Roster</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.s }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: theme.spacing.s }}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          <Text style={theme.typography.h2}>Attendance Roster</Text>
+        </View>
         <Text style={theme.typography.caption}>Tracking for: {event?.title}</Text>
         
         <View style={styles.statRow}>
@@ -97,7 +106,7 @@ export default function EventAttendanceScreen({ route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.surface },
   handle: { width: 40, height: 4, backgroundColor: theme.colors.border, borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: theme.spacing.m },
   header: { padding: theme.spacing.m, borderBottomWidth: 1, borderColor: theme.colors.border },

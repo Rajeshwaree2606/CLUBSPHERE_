@@ -47,6 +47,30 @@ mock.onPost(/\/clubs\/\d+\/join/).reply(config => {
   return [404, { message: 'Club not found' }];
 });
 
+mock.onPost(/\/clubs\/\d+\/leave/).reply(config => {
+  const match = config.url.match(/\/clubs\/(\d+)\/leave/);
+  const clubId = match ? match[1] : null;
+  const club = clubs.find(c => c.id === clubId);
+  if (club) { club.joined = false; club.memberCount = Math.max(0, club.memberCount - 1); return [200, club]; }
+  return [404, { message: 'Club not found' }];
+});
+
+mock.onPut(/\/clubs\/\d+/).reply(config => {
+  const match = config.url.match(/\/clubs\/(\d+)/);
+  const clubId = match ? match[1] : null;
+  const data = JSON.parse(config.data);
+  const index = clubs.findIndex(c => c.id === clubId);
+  if (index !== -1) { clubs[index] = { ...clubs[index], ...data }; return [200, clubs[index]]; }
+  return [404, { message: 'Club not found' }];
+});
+
+mock.onDelete(/\/clubs\/\d+/).reply(config => {
+  const match = config.url.match(/\/clubs\/(\d+)/);
+  const clubId = match ? match[1] : null;
+  clubs = clubs.filter(c => c.id !== clubId);
+  return [200, { success: true }];
+});
+
 // Events
 mock.onGet('/events').reply(() => [200, events]);
 mock.onPost('/events').reply(config => {
@@ -54,6 +78,22 @@ mock.onPost('/events').reply(config => {
   newEvent.id = Date.now().toString();
   events.push(newEvent);
   return [201, newEvent];
+});
+
+mock.onPut(/\/events\/\d+/).reply(config => {
+  const match = config.url.match(/\/events\/(\d+)/);
+  const eventId = match ? match[1] : null;
+  const data = JSON.parse(config.data);
+  const index = events.findIndex(e => e.id === eventId);
+  if (index !== -1) { events[index] = { ...events[index], ...data }; return [200, events[index]]; }
+  return [404, { message: 'Event not found' }];
+});
+
+mock.onDelete(/\/events\/\d+/).reply(config => {
+  const match = config.url.match(/\/events\/(\d+)/);
+  const eventId = match ? match[1] : null;
+  events = events.filter(e => e.id !== eventId);
+  return [200, { success: true }];
 });
 
 // Join Event
@@ -99,11 +139,43 @@ mock.onPost('/budgets').reply(config => {
   return [201, budgets[budgets.length - 1]];
 });
 
+mock.onPut(/\/budgets\/\d+/).reply(config => {
+  const match = config.url.match(/\/budgets\/(\d+)/);
+  const budgetId = match ? match[1] : null;
+  const data = JSON.parse(config.data);
+  const index = budgets.findIndex(b => b.id === budgetId);
+  if (index !== -1) { budgets[index] = { ...budgets[index], ...data }; return [200, budgets[index]]; }
+  return [404, { message: 'Budget not found' }];
+});
+
+mock.onDelete(/\/budgets\/\d+/).reply(config => {
+  const match = config.url.match(/\/budgets\/(\d+)/);
+  const budgetId = match ? match[1] : null;
+  budgets = budgets.filter(b => b.id !== budgetId);
+  return [200, { success: true }];
+});
+
 mock.onGet('/notifications').reply(() => [200, notificationsDB]);
 mock.onPost('/notifications').reply(config => {
   const newNotif = { ...JSON.parse(config.data), id: Date.now().toString(), date: new Date().toISOString().split('T')[0] };
   notificationsDB.unshift(newNotif);
   return [201, newNotif];
+});
+
+mock.onPut(/\/notifications\/\d+/).reply(config => {
+  const match = config.url.match(/\/notifications\/(\d+)/);
+  const notifId = match ? match[1] : null;
+  const data = JSON.parse(config.data);
+  const index = notificationsDB.findIndex(n => n.id === notifId);
+  if (index !== -1) { notificationsDB[index] = { ...notificationsDB[index], ...data }; return [200, notificationsDB[index]]; }
+  return [404, { message: 'Notification not found' }];
+});
+
+mock.onDelete(/\/notifications\/\d+/).reply(config => {
+  const match = config.url.match(/\/notifications\/(\d+)/);
+  const notifId = match ? match[1] : null;
+  notificationsDB = notificationsDB.filter(n => n.id !== notifId);
+  return [200, { success: true }];
 });
 
 // Gamification Leaderboard

@@ -1,7 +1,7 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { DataContext } from '../../context/DataContext';
-import { theme } from '../../utils/theme';
+import { ThemeContext } from '../../context/ThemeContext';
 import Button from '../../components/Button';
 import Badge from '../../components/Badge';
 import Toast from 'react-native-toast-message';
@@ -9,7 +9,10 @@ import Toast from 'react-native-toast-message';
 export default function EventDetailsScreen({ route, navigation }) {
   const { eventId } = route.params;
   const { events, clubs, joinEvent } = useContext(DataContext);
+  const { theme } = useContext(ThemeContext);
   const [loading, setLoading] = useState(false);
+
+  const styles = useMemo(() => getStyles(theme), [theme]);
 
   const event = events.find(e => e.id === eventId);
   const club = clubs.find(c => c.id === event?.clubId);
@@ -66,7 +69,7 @@ export default function EventDetailsScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   handle: { width: 40, height: 4, backgroundColor: theme.colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: theme.spacing.m },
   header: { marginBottom: theme.spacing.xl },
