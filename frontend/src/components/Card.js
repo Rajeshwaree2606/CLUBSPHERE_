@@ -1,27 +1,27 @@
-import React, { useContext } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { ThemeContext } from '../context/ThemeContext';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import { theme } from '../utils/theme';
 
-export default function Card({ children, style, onPress, noPadding = false }) {
-  const { theme } = useContext(ThemeContext);
-  const CardContainer = onPress ? TouchableOpacity : View;
-  
+export default function Card({ children, style }) {
   return (
-    <CardContainer 
-      onPress={onPress} 
-      activeOpacity={0.8}
-      style={[
-        {
-          backgroundColor: theme.colors.surface,
-          borderRadius: theme.borderRadius.l,
-          marginBottom: theme.spacing.m,
-          ...theme.shadows.medium,
-        },
-        !noPadding && { padding: theme.spacing.m },
-        style
-      ]}
-    >
+    <View style={[styles.card, style]}>
       {children}
-    </CardContainer>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.m,
+    padding: theme.spacing.m,
+    marginBottom: theme.spacing.m,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+});

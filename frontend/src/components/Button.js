@@ -1,59 +1,109 @@
-import React, { useContext } from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
-import { ThemeContext } from '../context/ThemeContext';
+import React from 'react';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { theme } from '../utils/theme';
 
-export default function Button({ 
-  title, 
-  onPress, 
-  variant = 'primary', 
-  loading = false, 
-  disabled = false, 
-  icon = null,
-  style, 
-  textStyle 
+export default function Button({
+  title,
+  onPress,
+  variant = 'primary',
+  size = 'md',
+  loading = false,
+  disabled = false,
+  icon,
+  style,
 }) {
-  const { theme } = useContext(ThemeContext);
+  const isDisabled = disabled || loading;
 
-  const getColors = () => {
-    if (disabled) return { bg: theme.colors.border, text: theme.colors.textSecondary };
+  const getBackgroundColor = () => {
+    if (isDisabled) return theme.colors.border;
     switch (variant) {
-      case 'secondary': return { bg: theme.colors.secondary, text: theme.colors.surface };
-      case 'outline': return { bg: 'transparent', text: theme.colors.primary, border: theme.colors.primary };
-      case 'danger': return { bg: theme.colors.errorLight, text: theme.colors.error };
-      case 'ghost': return { bg: theme.colors.primaryLight, text: theme.colors.primary };
-      default: return { bg: theme.colors.primary, text: theme.colors.surface };
+      case 'primary':
+        return theme.colors.primary;
+      case 'secondary':
+        return theme.colors.secondary;
+      case 'danger':
+        return theme.colors.error;
+      case 'ghost':
+        return 'transparent';
+      case 'outline':
+        return 'transparent';
+      default:
+        return theme.colors.primary;
     }
   };
 
-  const colors = getColors();
+  const getTextColor = () => {
+    if (variant === 'ghost' || variant === 'outline') {
+      return isDisabled ? theme.colors.border : theme.colors.primary;
+    }
+    return theme.colors.surface;
+  };
+
+  const getBorderColor = () => {
+    if (variant === 'outline') {
+      return isDisabled ? theme.colors.border : theme.colors.primary;
+    }
+    return 'transparent';
+  };
+
+  const getPadding = () => {
+    switch (size) {
+      case 'sm':
+        return { paddingVertical: 8, paddingHorizontal: 12 };
+      case 'md':
+        return { paddingVertical: 12, paddingHorizontal: 24 };
+      case 'lg':
+        return { paddingVertical: 16, paddingHorizontal: 32 };
+      default:
+        return { paddingVertical: 12, paddingHorizontal: 24 };
+    }
+  };
 
   return (
     <TouchableOpacity
       style={[
+        styles.button,
         {
-          paddingVertical: 14,
-          paddingHorizontal: theme.spacing.m,
-          borderRadius: theme.borderRadius.round,
-          alignItems: 'center',
-          justifyContent: 'center',
+          backgroundColor: getBackgroundColor(),
+          borderColor: getBorderColor(),
+          ...getPadding(),
         },
-        { backgroundColor: colors.bg },
-        variant === 'outline' && { borderWidth: 1, borderColor: colors.border },
-        style
+        style,
       ]}
       onPress={onPress}
-      disabled={disabled || loading}
+      disabled={isDisabled}
       activeOpacity={0.7}
     >
       {loading ? (
-        <ActivityIndicator color={colors.text} />
+        <ActivityIndicator color={getTextColor()} />
       ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {icon && <MaterialCommunityIcons name={icon} size={20} color={colors.text} style={{ marginRight: theme.spacing.xs }} />}
-          <Text style={[{ fontSize: 16, fontWeight: '700', letterSpacing: 0.3, color: colors.text }, textStyle]}>{title}</Text>
-        </View>
+        <>
+          {icon && (
+            <MaterialCommunityIcons
+              name={icon}
+              size={20}
+              color={getTextColor()}
+              style={{ marginRight: 8 }}
+            />
+          )}
+          <Text style={[styles.text, { color: getTextColor() }]}>{title}</Text>
+        </>
       )}
     </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  button: {
+    borderRadius: theme.borderRadius.m,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  text: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
