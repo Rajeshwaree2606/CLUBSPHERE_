@@ -1,0 +1,4 @@
+Creating an Expo project using the blank template.
+
+⠋ Locating project files.⠙ Locating project files.⠹ Locating project files.⠸ Locating project files.⠼ Locating project files.⠴ Locating project files.⠦ Locating project files.⠧ Locating project files.⠇ Locating project files.⠏ Locating project files.⠋ Locating project files.⠙ Locating project files.⠹ Locating project files.⠸ Locating project files.⠼ Locating project files.⠴ Locating project files.⠦ Locating project files.⠧ Locating project files.⠇ Locating project files.⠏ Locating project files.⠋ Locating project files.⠙ Locating project files.⠹ Locating project files.⠸ Locating project files.⠼ Locating project files.⠴ Locating project files.⠦ Locating project files.⠧ Locating project files.⠇ Locating project files.✔ Downloaded and extracted project files.
+> npm install
