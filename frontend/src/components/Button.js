@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { theme } from '../utils/theme';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function Button({
   title,
@@ -13,6 +13,7 @@ export default function Button({
   icon,
   style,
 }) {
+  const { theme } = useContext(ThemeContext);
   const isDisabled = disabled || loading;
 
   const getBackgroundColor = () => {
@@ -96,7 +97,7 @@ export default function Button({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: theme.borderRadius.m,
+    borderRadius: 12,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',

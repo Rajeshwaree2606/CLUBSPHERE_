@@ -30,7 +30,7 @@ export default function Input({
           backgroundColor: theme.colors.background,
           borderColor: error ? theme.colors.error : isFocused ? theme.colors.primary : theme.colors.border,
           borderWidth: 1.5,
-          borderRadius: theme.borderRadius.round
+          borderRadius: 28
         }
       ]}>
         {leftIcon && (

@@ -1,18 +1,24 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { theme } from '../utils/theme';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function Badge({ label, status = 'primary' }) {
+  const { theme } = useContext(ThemeContext);
+
   const getBackgroundColor = () => {
     switch (status) {
       case 'primary':
         return theme.colors.primaryLight;
       case 'secondary':
-        return '#d1fae5';
+        return theme.colors.secondaryLight;
       case 'accent':
-        return '#fef3c7';
+        return theme.colors.accentLight || '#fef3c7';
       case 'error':
-        return '#fee2e2';
+        return theme.colors.errorLight;
+      case 'success':
+        return theme.colors.successLight || '#dcfce7';
+      case 'warning':
+        return theme.colors.warningLight || '#fef3c7';
       default:
         return theme.colors.primaryLight;
     }
@@ -28,13 +34,17 @@ export default function Badge({ label, status = 'primary' }) {
         return theme.colors.accent;
       case 'error':
         return theme.colors.error;
+      case 'success':
+        return theme.colors.success || '#22c55e';
+      case 'warning':
+        return theme.colors.warning || '#f59e0b';
       default:
         return theme.colors.primary;
     }
   };
 
   return (
-    <View style={[styles.badge, { backgroundColor: getBackgroundColor() }]}>
+    <View style={[styles.badge, { backgroundColor: getBackgroundColor(), borderRadius: theme.borderRadius.s }]}>
       <Text style={[styles.text, { color: getTextColor() }]}>{label}</Text>
     </View>
   );
@@ -44,7 +54,6 @@ const styles = StyleSheet.create({
   badge: {
     paddingVertical: 4,
     paddingHorizontal: 12,
-    borderRadius: theme.borderRadius.s,
     alignSelf: 'flex-start',
   },
   text: {
