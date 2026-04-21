@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, FlatList, TextInput, Modal, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, FlatList, TextInput, Modal, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
 import { DataContext } from '../../context/DataContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import { formatCurrency } from '../../utils/currency';
@@ -36,16 +36,22 @@ export default function AdminBudgetScreen() {
   };
 
   const handleDelete = (recordId) => {
-    import('react-native').then(({ Alert }) => {
+    const performDelete = async () => {
+      const res = await deleteBudget(recordId);
+      if (res.success) Toast.show({ type: 'success', text1: 'Record deleted' });
+      else Toast.show({ type: 'error', text1: 'Deletion failed' });
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to delete this transaction?')) {
+        performDelete();
+      }
+    } else {
       Alert.alert('Delete Record', 'Are you sure you want to delete this transaction?', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: async () => {
-            const res = await deleteBudget(recordId);
-            if (res.success) Toast.show({ type: 'success', text1: 'Record deleted' });
-            else Toast.show({ type: 'error', text1: 'Deletion failed' });
-        } }
+        { text: 'Delete', style: 'destructive', onPress: performDelete }
       ]);
-    });
+    }
   };
 
   const handleAdd = async () => {
@@ -118,12 +124,12 @@ export default function AdminBudgetScreen() {
         />
       </View>
       
-      <View style={[styles.fabContainer, { bottom: theme.spacing.m, left: theme.spacing.m, right: theme.spacing.m }]}>
+      <View style={[styles.fabContainer, { bottom: theme.spacing.m, right: theme.spacing.m, zIndex: 10 }]}>
          <Button title="Add Record" onPress={openCreateModal} icon="plus" style={{ borderRadius: 100 }} />
       </View>
 
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={[styles.modalBg, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+        <View style={[styles.modalBg, { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 }]}>
           <ScrollView contentContainerStyle={[styles.modalContent, { backgroundColor: theme.colors.surface, padding: theme.spacing.l, paddingTop: theme.spacing.xl }]} showsVerticalScrollIndicator={false}>
              <Text style={[{ fontSize: 24, fontWeight: '700', marginBottom: theme.spacing.l }, { color: theme.colors.text }]}>{editingRecord ? 'Edit Transaction' : 'New Transaction'}</Text>
              

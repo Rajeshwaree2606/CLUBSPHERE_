@@ -1,5 +1,5 @@
 import React, { useContext, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, ScrollView, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, ScrollView, Modal, Alert, Platform } from 'react-native';
 import { DataContext } from '../../context/DataContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import Card from '../../components/Card';
@@ -32,14 +32,22 @@ export default function AnnouncementsScreen() {
   };
 
   const handleDelete = (notificationId) => {
-    Alert.alert('Delete Alert', 'Are you sure you want to delete this alert?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-          const res = await deleteNotification(notificationId);
-          if (res.success) Toast.show({ type: 'success', text1: 'Alert deleted' });
-          else Toast.show({ type: 'error', text1: 'Deletion failed' });
-      } }
-    ]);
+    const performDelete = async () => {
+      const res = await deleteNotification(notificationId);
+      if (res.success) Toast.show({ type: 'success', text1: 'Alert deleted' });
+      else Toast.show({ type: 'error', text1: 'Deletion failed' });
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to delete this alert?')) {
+        performDelete();
+      }
+    } else {
+      Alert.alert('Delete Alert', 'Are you sure you want to delete this alert?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: performDelete }
+      ]);
+    }
   };
 
   const handleBroadcast = async () => {
@@ -119,8 +127,8 @@ const getStyles = (theme) => StyleSheet.create({
   cardContainer: { marginBottom: theme.spacing.m },
   card: { flexDirection: 'row', gap: theme.spacing.m, alignItems: 'flex-start' },
   iconBox: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  fabContainer: { position: 'absolute', bottom: theme.spacing.m, left: theme.spacing.m, right: theme.spacing.m, alignItems: 'center' },
-  modalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  fabContainer: { position: 'absolute', bottom: theme.spacing.m, right: theme.spacing.m, zIndex: 10 },
+  modalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 },
   modalContent: { backgroundColor: theme.colors.surface, padding: theme.spacing.l, paddingTop: theme.spacing.xl, borderTopLeftRadius: theme.borderRadius.l, borderTopRightRadius: theme.borderRadius.l },
   input: { backgroundColor: theme.colors.background, padding: theme.spacing.m, borderRadius: theme.borderRadius.m, fontSize: 16, color: theme.colors.text, marginBottom: theme.spacing.m },
   modalActions: { flexDirection: 'row', gap: theme.spacing.m, marginTop: theme.spacing.s }

@@ -1,14 +1,17 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
-import { theme } from '../../utils/theme';
+import { ThemeContext } from '../../context/ThemeContext';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('student@test.com');
   const [password, setPassword] = useState('student123');
   const { login } = useContext(AuthContext);
+  const { theme } = useContext(ThemeContext);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const styles = useMemo(() => getStyles(theme), [theme]);
 
   const handleLogin = async () => {
     setIsLoading(true);
@@ -61,7 +64,7 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1, padding: theme.spacing.xl, justifyContent: 'center', backgroundColor: theme.colors.background,
   },
@@ -76,8 +79,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary, padding: theme.spacing.m,
     borderRadius: theme.borderRadius.m, alignItems: 'center', marginTop: theme.spacing.s,
   },
-  buttonText: { color: theme.colors.surface, fontWeight: '600', fontSize: 16 },
+  buttonText: { color: '#ffffff', fontWeight: '600', fontSize: 16 },
   linkText: { color: theme.colors.primary, textAlign: 'center', fontWeight: '500' },
   error: { color: theme.colors.error, marginBottom: theme.spacing.m, textAlign: 'center' },
-  hintBox: { marginTop: 40, padding: 10, backgroundColor: '#E0E7FF', borderRadius: 8 }
+  hintBox: { marginTop: 40, padding: 10, backgroundColor: theme.colors.primaryLight, borderRadius: 8 }
 });
