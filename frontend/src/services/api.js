@@ -47,7 +47,19 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(error)
+  async (error) => {
+    if (error.response && error.response.status === 401) {
+      // Clear session on 401 Unauthorized
+      try {
+        await AsyncStorage.multiRemove(['user', 'token']);
+      } catch (e) {
+        console.error('Error clearing storage on 401', e);
+      }
+      // Note: We can't easily call AuthContext.logout here without a hook, 
+      // but clearing storage ensures the next reload/navigation check fails.
+    }
+    return Promise.reject(error);
+  }
 );
 
 export const setApiBaseURL = (baseURL) => {
@@ -93,7 +105,7 @@ if (USE_MOCK_API && mock) {
 
   // NOTE: mock routes are defined without the /api prefix; if you want to use mocks with the
   // current app code, update these to match the frontend calls (e.g. /api/auth/login).
-  mock.onPost('/auth/login').reply(config => {
+  mock.onPost('/api/auth/login').reply(config => {
     const { email, password } = JSON.parse(config.data);
     const user = usersDB[email];
     if (user && password === email.split('@')[0]) {
@@ -102,18 +114,18 @@ if (USE_MOCK_API && mock) {
     return [401, { message: 'Invalid credentials' }];
   });
 
-  mock.onPost('/auth/signup').reply(200, { token: 'mock-jwt-token', user: { id: 'stud2', name: 'New User', role: 'student', xp: 0, level: 1 } });
+  mock.onPost('/api/auth/signup').reply(200, { token: 'mock-jwt-token', user: { id: 'stud2', name: 'New User', role: 'student', xp: 0, level: 1 } });
 
   // Clubs
-  mock.onGet('/clubs').reply(() => [200, clubs]);
-  mock.onPost('/clubs').reply(config => {
+  mock.onGet('/api/clubs').reply(() => [200, clubs]);
+  mock.onPost('/api/clubs').reply(config => {
     const newClub = JSON.parse(config.data);
     newClub.id = Date.now().toString();
     clubs.push(newClub);
     return [201, newClub];
   });
-  mock.onPost(/\/clubs\/\d+\/join/).reply(config => {
-    const match = config.url.match(/\/clubs\/(\d+)\/join/);
+  mock.onPost(/\/api\/clubs\/\d+\/join/).reply(config => {
+    const match = config.url.match(/\/api\/clubs\/(\d+)\/join/);
     const clubId = match ? match[1] : null;
     const club = clubs.find(c => c.id === clubId);
     if (club) { club.joined = true; club.memberCount += 1; return [200, club]; }
@@ -121,8 +133,8 @@ if (USE_MOCK_API && mock) {
   });
 
   // Events
-  mock.onGet('/events').reply(() => [200, events]);
-  mock.onPost('/events').reply(config => {
+  mock.onGet('/api/events').reply(() => [200, events]);
+  mock.onPost('/api/events').reply(config => {
     const newEvent = JSON.parse(config.data);
     newEvent.id = Date.now().toString();
     events.push(newEvent);
@@ -130,8 +142,8 @@ if (USE_MOCK_API && mock) {
   });
 
   // Join Event
-  mock.onPost(/\/events\/\d+\/join/).reply(config => {
-    const match = config.url.match(/\/events\/(\d+)\/join/);
+  mock.onPost(/\/api\/events\/\d+\/join/).reply(config => {
+    const match = config.url.match(/\/api\/events\/(\d+)\/join/);
     const eventId = match ? match[1] : null;
     const event = events.find(e => e.id === eventId);
     if (event) { event.joined = true; return [200, event]; }
@@ -139,8 +151,8 @@ if (USE_MOCK_API && mock) {
   });
 
   // Attendance Tracking (Admin)
-  mock.onGet(/\/events\/\d+\/attendance/).reply(config => {
-    const match = config.url.match(/\/events\/(\d+)\/attendance/);
+  mock.onGet(/\/api\/events\/\d+\/attendance/).reply(config => {
+    const match = config.url.match(/\/api\/events\/(\d+)\/attendance/);
     const eventId = match ? match[1] : null;
     const list = attendanceDB[eventId] || [
       { userId: 'stud1', name: 'Student User', status: 'pending' },
@@ -150,8 +162,8 @@ if (USE_MOCK_API && mock) {
     return [200, list];
   });
 
-  mock.onPost(/\/events\/\d+\/attendance/).reply(config => {
-    const match = config.url.match(/\/events\/(\d+)\/attendance/);
+  mock.onPost(/\/api\/events\/\d+\/attendance/).reply(config => {
+    const match = config.url.match(/\/api\/events\/(\d+)\/attendance/);
     const eventId = match ? match[1] : null;
     const { userId, status } = JSON.parse(config.data);
     
@@ -166,21 +178,21 @@ if (USE_MOCK_API && mock) {
   });
 
   // Budgets & General
-  mock.onGet('/budgets').reply(() => [200, budgets]);
-  mock.onPost('/budgets').reply(config => {
+  mock.onGet('/api/budgets').reply(() => [200, budgets]);
+  mock.onPost('/api/budgets').reply(config => {
     budgets.push({ ...JSON.parse(config.data), id: Date.now().toString() });
     return [201, budgets[budgets.length - 1]];
   });
 
-  mock.onGet('/notifications').reply(() => [200, notificationsDB]);
-  mock.onPost('/notifications').reply(config => {
+  mock.onGet('/api/notifications').reply(() => [200, notificationsDB]);
+  mock.onPost('/api/notifications').reply(config => {
     const newNotif = { ...JSON.parse(config.data), id: Date.now().toString(), date: new Date().toISOString().split('T')[0] };
     notificationsDB.unshift(newNotif);
     return [201, newNotif];
   });
 
   // Gamification Leaderboard
-  mock.onGet('/leaderboard').reply(() => {
+  mock.onGet('/api/leaderboard').reply(() => {
     const rankedUsers = Object.values(usersDB)
       .filter(u => u.role === 'student')
       .sort((a, b) => b.xp - a.xp)
@@ -188,13 +200,13 @@ if (USE_MOCK_API && mock) {
     return [200, rankedUsers];
   });
 
-  mock.onPost('/user/addXp').reply(config => {
+  mock.onPost('/api/user/addXp').reply(config => {
     const { xpToAdd } = JSON.parse(config.data);
     // Just simulate returning a success logic, in reality we'd update AuthContext
     return [200, { added: xpToAdd }];
   });
 
-  mock.onGet('/certificates').reply(200, initialCertificates);
+  mock.onGet('/api/certificates').reply(200, initialCertificates);
 }
 
 export default api;
