@@ -100,8 +100,32 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const response = await api.get('/api/auth/me');
+      const payload = response?.data?.data;
+      if (payload) {
+        const backendRole = payload.role;
+        const uiRole = ['SuperAdmin', 'ClubAdmin', 'admin'].includes(backendRole) ? 'admin' : 'student';
+        const nextUser = { 
+          id: payload.id, 
+          name: payload.name, 
+          email: payload.email, 
+          role: uiRole, 
+          backendRole,
+          xp: parseInt(payload.xp || 0),
+          level: parseInt(payload.level || 1)
+        };
+        await AsyncStorage.setItem('user', JSON.stringify(nextUser));
+        setUser(nextUser);
+      }
+    } catch (e) {
+      console.error('Failed to refresh user', e);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
