@@ -164,4 +164,20 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { register, login };
+const getMe = async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, name, email, role, xp, level FROM users WHERE id = $1",
+      [req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    return res.status(200).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error("❌ Get Me Error:", error.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+module.exports = { register, login, getMe };

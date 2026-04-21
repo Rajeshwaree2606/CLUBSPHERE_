@@ -131,4 +131,59 @@ const getAnnouncementsByClub = async (req, res) => {
   }
 };
 
-module.exports = { createAnnouncement, getAnnouncements, getAnnouncementsByClub };
+// ========================
+//  UPDATE ANNOUNCEMENT — PUT /api/announcements/:id
+//  SuperAdmin & ClubAdmin only
+// ========================
+const updateAnnouncement = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, message } = req.body;
+
+    const result = await pool.query(
+      `UPDATE announcements SET title = COALESCE($1, title), message = COALESCE($2, message)
+       WHERE id = $3
+       RETURNING *`,
+      [title, message, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Announcement not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Announcement updated successfully",
+      data: result.rows[0],
+    });
+  } catch (error) {
+    console.error("❌ Update Announcement Error:", error.message);
+    return res.status(500).json({ success: false, message: "Server error while updating announcement" });
+  }
+};
+
+// ========================
+//  DELETE ANNOUNCEMENT — DELETE /api/announcements/:id
+//  SuperAdmin & ClubAdmin only
+// ========================
+const deleteAnnouncement = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query("DELETE FROM announcements WHERE id = $1 RETURNING id", [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Announcement not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Announcement deleted successfully",
+    });
+  } catch (error) {
+    console.error("❌ Delete Announcement Error:", error.message);
+    return res.status(500).json({ success: false, message: "Server error while deleting announcement" });
+  }
+};
+
+module.exports = { createAnnouncement, getAnnouncements, getAnnouncementsByClub, updateAnnouncement, deleteAnnouncement };

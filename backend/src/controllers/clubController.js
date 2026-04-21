@@ -146,4 +146,85 @@ const joinClub = async (req, res) => {
   }
 };
 
-module.exports = { createClub, getClubs, joinClub };
+// ========================
+//  LEAVE CLUB — POST /api/clubs/:clubId/leave
+//  Any authenticated user
+// ========================
+const leaveClub = async (req, res) => {
+  try {
+    const { clubId } = req.params;
+
+    await pool.query(
+      "DELETE FROM club_members WHERE club_id = $1 AND user_id = $2",
+      [clubId, req.user.id]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Left club successfully",
+    });
+  } catch (error) {
+    console.error("❌ Leave Club Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while leaving club",
+    });
+  }
+};
+
+// ========================
+//  UPDATE CLUB — PUT /api/clubs/:id
+//  SuperAdmin only
+// ========================
+const updateClub = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+
+    const result = await pool.query(
+      `UPDATE clubs SET name = COALESCE($1, name), description = COALESCE($2, description)
+       WHERE id = $3
+       RETURNING *`,
+      [name, description, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Club not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Club updated successfully",
+      data: result.rows[0],
+    });
+  } catch (error) {
+    console.error("❌ Update Club Error:", error.message);
+    return res.status(500).json({ success: false, message: "Server error while updating club" });
+  }
+};
+
+// ========================
+//  DELETE CLUB — DELETE /api/clubs/:id
+//  SuperAdmin only
+// ========================
+const deleteClub = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query("DELETE FROM clubs WHERE id = $1 RETURNING id", [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Club not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Club deleted successfully",
+    });
+  } catch (error) {
+    console.error("❌ Delete Club Error:", error.message);
+    return res.status(500).json({ success: false, message: "Server error while deleting club" });
+  }
+};
+
+module.exports = { createClub, getClubs, joinClub, leaveClub, updateClub, deleteClub };
