@@ -13,6 +13,8 @@ const clubRoutes = require("./routes/clubRoutes");
 const eventRoutes = require("./routes/eventRoutes");
 const announcementRoutes = require("./routes/announcementRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
+const budgetRoutes = require("./routes/budgetRoutes");
+const leaderboardRoutes = require("./routes/leaderboardRoutes");
 
 const app = express();
 
@@ -39,6 +41,8 @@ app.use("/api/clubs", clubRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/budgets", budgetRoutes);
+app.use("/api/leaderboard", leaderboardRoutes);
 
 // ---- 404 Handler (catch-all) ----
 app.use((req, res) => {
