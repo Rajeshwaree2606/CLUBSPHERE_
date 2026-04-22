@@ -19,7 +19,7 @@ export const API_BASE_URL = ENV.EXPO_PUBLIC_API_BASE_URL || getDefaultBaseURL();
 export const MOCK_API_BASE_URL = ENV.EXPO_PUBLIC_MOCK_API_BASE_URL || 'https://api.clubmanagement.local';
 
 // Set to true only when you explicitly want to use axios-mock-adapter handlers below
-export const USE_MOCK_API = String(ENV.EXPO_PUBLIC_USE_MOCK_API || 'false').toLowerCase() === 'true';
+export const USE_MOCK_API = (ENV.EXPO_PUBLIC_USE_MOCK_API === 'true');
 
 const api = axios.create({
   baseURL: USE_MOCK_API ? MOCK_API_BASE_URL : API_BASE_URL,

@@ -6,6 +6,9 @@ const { Pool } = require("pg");
 
 // Create a connection pool using environment variables
 const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  // Fallback to individual variables if DATABASE_URL is not present
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
   user: process.env.DB_USER,
