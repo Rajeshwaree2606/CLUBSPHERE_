@@ -19,7 +19,17 @@ const leaderboardRoutes = require("./routes/leaderboardRoutes");
 const app = express();
 
 // ---- Global Middleware ----
-app.use(cors()); // Enable Cross-Origin Resource Sharing
+const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : ['*'];
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(helmet()); // Set security-related HTTP headers
 app.use(morgan("dev")); // HTTP request logger
 app.use(express.json()); // Parse incoming JSON bodies
