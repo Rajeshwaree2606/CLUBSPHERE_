@@ -17,7 +17,7 @@ const pool = new Pool({
 });
 
 /**
- * connectDB — Tests the database connection.
+ * connectDB — Initializes PostgreSQL connection and verifies schema
  * Call this once at startup before starting the server.
  */
 const connectDB = async () => {
@@ -96,7 +96,7 @@ const connectDB = async () => {
         club_id      INTEGER NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
         title        VARCHAR(255) NOT NULL,
         amount       DECIMAL(12, 2) NOT NULL,
-        type         VARCHAR(50) NOT NULL, 
+        type         VARCHAR(50) NOT NULL,
         description  TEXT,
         created_by   INTEGER NOT NULL REFERENCES users(id),
         created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -120,4 +120,4 @@ const connectDB = async () => {
   }
 };
 
-module.exports = { pool, connectDB };
+module.exports = { connectDB };
