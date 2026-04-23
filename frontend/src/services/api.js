@@ -13,7 +13,7 @@ const getDefaultBaseURL = () => {
 };
 
 // Real backend base URL (override in Expo via EXPO_PUBLIC_API_BASE_URL)
-export const API_BASE_URL = ENV.EXPO_PUBLIC_API_BASE_URL || getDefaultBaseURL();
+export const API_BASE_URL = ENV.EXPO_PUBLIC_API_BASE_URL || "https://clubsphere-319t.onrender.com/";
 
 // Mock base URL (only used when USE_MOCK_API === true)
 export const MOCK_API_BASE_URL = ENV.EXPO_PUBLIC_MOCK_API_BASE_URL || 'https://api.clubmanagement.local';
