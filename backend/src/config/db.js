@@ -13,6 +13,10 @@ const pool = process.env.DATABASE_URL
       database: process.env.DB_NAME,
     });
 
+/**
+ * connectDB — Initializes PostgreSQL connection and verifies schema
+ * Call this once at startup before starting the server.
+ */
 const connectDB = async () => {
   const client = await pool.connect();
   try {
