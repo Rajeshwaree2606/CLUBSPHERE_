@@ -24,29 +24,35 @@ const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:8081",
   "http://localhost:8082",
-  "https://clubsphere-bhuvan-somisettys-projects.vercel.app",
+  "https://clubsphere-two.vercel.app",
   "https://clubsphere-sigma.vercel.app",
 ].filter(Boolean);
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl)
-      if (!origin) return callback(null, true);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
 
-      const isExactMatch = allowedOrigins.includes(origin);
-      const isVercelDomain = /^https:\/\/.*\.vercel\.app$/.test(origin);
+    const isExactMatch = allowedOrigins.includes(origin);
+    const isVercelDomain = /^https:\/\/.*\.vercel\.app$/.test(origin);
 
-      if (isExactMatch || isVercelDomain) {
-        callback(null, true);
-      } else {
-        console.error("❌ CORS Blocked origin:", origin);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  })
-);
+    if (isExactMatch || isVercelDomain) {
+      callback(null, true);
+    } else {
+      console.error("❌ CORS Blocked origin:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Handle preflight requests for all routes
+app.options("*", cors(corsOptions));
 
 app.use(helmet());
 app.use(morgan("dev"));
