@@ -34,7 +34,10 @@ app.use(
       // Allow requests with no origin (like mobile apps or curl)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+      const isExactMatch = allowedOrigins.includes(origin);
+      const isVercelDomain = /^https:\/\/.*\.vercel\.app$/.test(origin);
+
+      if (isExactMatch || isVercelDomain) {
         callback(null, true);
       } else {
         console.error("❌ CORS Blocked origin:", origin);
