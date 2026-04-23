@@ -6,14 +6,9 @@ import { initialClubs, initialEvents, initialNotifications, initialBudgets, init
 
 const ENV = (typeof process !== 'undefined' && process.env) ? process.env : {};
 
-// Platform-aware default: Android emulator needs 10.0.2.2, others use localhost
-const getDefaultBaseURL = () => {
-  if (Platform.OS === 'android') return 'http://10.0.2.2:5000';
-  return 'http://localhost:5000'; // iOS simulator & web
-};
 
 // Real backend base URL (override in Expo via EXPO_PUBLIC_API_BASE_URL)
-export const API_BASE_URL = ENV.EXPO_PUBLIC_API_BASE_URL || "https://clubsphere-319t.onrender.com/";
+export const API_BASE_URL = ENV.EXPO_PUBLIC_API_BASE_URL || "https://clubsphere-319t.onrender.com";
 
 // Mock base URL (only used when USE_MOCK_API === true)
 export const MOCK_API_BASE_URL = ENV.EXPO_PUBLIC_MOCK_API_BASE_URL || 'https://api.clubmanagement.local';
@@ -114,7 +109,7 @@ if (USE_MOCK_API && mock) {
     return [401, { message: 'Invalid credentials' }];
   });
 
-  mock.onPost('/api/auth/signup').reply(200, { token: 'mock-jwt-token', user: { id: 'stud2', name: 'New User', role: 'student', xp: 0, level: 1 } });
+  mock.onPost('/api/auth/register').reply(200, { token: 'mock-jwt-token', user: { id: 'stud2', name: 'New User', role: 'student', xp: 0, level: 1 } });
 
   // Clubs
   mock.onGet('/api/clubs').reply(() => [200, clubs]);
