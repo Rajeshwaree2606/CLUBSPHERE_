@@ -19,21 +19,44 @@ const leaderboardRoutes = require("./routes/leaderboardRoutes");
 const app = express();
 
 // ---- Global Middleware ----
-const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : ['*'];
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
-app.use(helmet()); // Set security-related HTTP headers
-app.use(morgan("dev")); // HTTP request logger
-app.use(express.json()); // Parse incoming JSON bodies
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "http://localhost:3000",
+  "http://localhost:8081",
+  "http://localhost:8082",
+  "https://clubsphere-bhuvan-somisettys-projects.vercel.app",
+  "https://clubsphere-sigma.vercel.app",
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+        callback(null, true);
+      } else {
+        console.error("❌ CORS Blocked origin:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
+
+app.use(helmet());
+app.use(morgan("dev"));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ---- Root Route ----
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "ClubSphere backend is live 🚀",
+  });
+});
 
 // ---- Health Check Route ----
 app.get("/api/health", (req, res) => {
@@ -54,7 +77,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/budgets", budgetRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 
-// ---- 404 Handler (catch-all) ----
+// ---- 404 Handler ----
 app.use((req, res) => {
   res.status(404).json({
     success: false,
