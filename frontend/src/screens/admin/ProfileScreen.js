@@ -1,5 +1,5 @@
 import React, { useContext, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import Card from '../../components/Card';
@@ -29,6 +29,22 @@ export default function ProfileScreen() {
 
       <View style={{flex: 1, justifyContent: 'flex-end', marginTop: theme.spacing.xxl}}>
          <Button title="Log Out" variant="danger" onPress={logout} icon="logout" />
+         <Button 
+            title="Reset App (Dev Only)" 
+            variant="ghost" 
+            onPress={() => {
+              Alert.alert(
+                "Reset App",
+                "This will clear all local storage and log you out. Continue?",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Reset", style: "destructive", onPress: logout }
+                ]
+              );
+            }} 
+            icon="delete-sweep" 
+            style={{ marginTop: theme.spacing.m }}
+         />
       </View>
 
     </ScrollView>

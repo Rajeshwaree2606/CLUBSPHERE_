@@ -22,8 +22,8 @@ const start = async () => {
     await connectDB();
 
     // 2. Start the Express server only after DB is ready
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
       console.log(`📡 Health check → http://localhost:${PORT}/api/health`);
     });
   } catch (error) {

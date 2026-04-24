@@ -19,13 +19,37 @@ export const AuthProvider = ({ children }) => {
 
         if (storedToken) {
           setAuthToken(storedToken);
-        }
-
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
+          // Verify token with backend
+          try {
+            const response = await api.get('/api/auth/me');
+            const payload = response?.data?.data;
+            if (payload) {
+              const backendRole = payload.role;
+              const uiRole = ['SuperAdmin', 'ClubAdmin', 'admin'].includes(backendRole) ? 'admin' : 'student';
+              const nextUser = { 
+                id: payload.id, 
+                name: payload.name, 
+                email: payload.email, 
+                role: uiRole, 
+                backendRole,
+                xp: parseInt(payload.xp || 0),
+                level: parseInt(payload.level || 1)
+              };
+              setUser(nextUser);
+              await AsyncStorage.setItem('user', JSON.stringify(nextUser));
+            } else {
+              await logout();
+            }
+          } catch (error) {
+            console.error('Session verification failed, logging out...', error.message);
+            await logout();
+          }
+        } else {
+          setUser(null);
         }
       } catch (e) {
         console.error('Failed to load user', e);
+        setUser(null);
       } finally {
         setLoading(false);
       }

@@ -1,11 +1,12 @@
 import React, { useContext, useState, useMemo } from 'react';
-import { View, Text, FlatList, TextInput, StyleSheet, ScrollView, Modal, Alert, Platform } from 'react-native';
+import { View, Text, FlatList, TextInput, StyleSheet, ScrollView, Modal, Alert, Platform, TouchableOpacity } from 'react-native';
 import { DataContext } from '../../context/DataContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import Badge from '../../components/Badge';
 import Toast from 'react-native-toast-message';
+import ConfirmModal from '../../components/ConfirmModal';
 
 export default function AdminEventsScreen({ navigation }) {
   const { events, createEvent, editEvent, deleteEvent, clubs } = useContext(DataContext);
@@ -23,6 +24,15 @@ export default function AdminEventsScreen({ navigation }) {
   const [venue, setVenue] = useState('');
   const [clubId, setClubId] = useState(clubs.length > 0 ? clubs[0].id : '');
   const [loading, setLoading] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState(null);
+
+  // Ensure clubId is set when clubs load
+  React.useEffect(() => {
+    if (!clubId && clubs.length > 0) {
+      setClubId(clubs[0].id);
+    }
+  }, [clubs]);
 
   const openCreateModal = () => {
     setEditingEvent(null);
@@ -42,35 +52,41 @@ export default function AdminEventsScreen({ navigation }) {
   };
 
   const handleDelete = (eventId) => {
-    const performDelete = async () => {
-      const res = await deleteEvent(eventId);
-      if (res.success) Toast.show({ type: 'success', text1: 'Event deleted' });
-      else Toast.show({ type: 'error', text1: 'Deletion failed' });
-    };
+    setEventToDelete(eventId);
+    setConfirmVisible(true);
+  };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to delete this event?')) {
-        performDelete();
-      }
-    } else {
-      Alert.alert('Delete Event', 'Are you sure you want to delete this event?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: performDelete }
-      ]);
-    }
+  const confirmDelete = async () => {
+    if (!eventToDelete) return;
+    setLoading(true);
+    const res = await deleteEvent(eventToDelete);
+    setLoading(false);
+    setConfirmVisible(false);
+    setEventToDelete(null);
+    
+    if (res.success) Toast.show({ type: 'success', text1: 'Event deleted' });
+    else Toast.show({ type: 'error', text1: 'Deletion failed' });
   };
 
   const handleSave = async () => {
-    if (!title || !desc || !date) {
-        Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please provide all details' });
+    console.log('Attempting to save event:', { title, date, clubId, finalClubId: clubId || (clubs.length > 0 ? clubs[0].id : null) });
+    
+    if (!title || !desc || !date || (!clubId && clubs.length > 0)) {
+        Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please provide all details, including selecting a club.' });
+        return;
+    }
+    
+    const finalClubId = clubId || (clubs.length > 0 ? clubs[0].id : null);
+    if (!finalClubId) {
+        Toast.show({ type: 'error', text1: 'Error', text2: 'No club available to assign this event to.' });
         return;
     }
     setLoading(true);
     let res;
     if (editingEvent) {
-      res = await editEvent(editingEvent.id, { ...editingEvent, title, description: desc, date, time, venue, clubId });
+      res = await editEvent(editingEvent.id, { ...editingEvent, title, description: desc, date, time, venue, clubId: finalClubId });
     } else {
-      res = await createEvent({ title, description: desc, date, time, venue, maxParticipants: 100, clubId });
+      res = await createEvent({ title, description: desc, date, time, venue, maxParticipants: 100, clubId: finalClubId });
     }
     setLoading(false);
     
@@ -123,14 +139,49 @@ export default function AdminEventsScreen({ navigation }) {
              <TextInput style={styles.input} placeholder="Event Title" value={title} onChangeText={setTitle} />
              <TextInput style={[styles.input, { height: 80 }]} placeholder="Event Description..." value={desc} onChangeText={setDesc} multiline />
              <View style={{flexDirection: 'row', gap: theme.spacing.s}}>
-                <TextInput style={[styles.input, {flex: 1}]} placeholder="Date (MM-DD)" value={date} onChangeText={setDate} />
-                <TextInput style={[styles.input, {flex: 1}]} placeholder="Time (10AM)" value={time} onChangeText={setTime} />
+              <TextInput 
+                style={[styles.input, {flex: 1}]} 
+                placeholder="Date" 
+                value={date} 
+                onChangeText={setDate} 
+                {...(Platform.OS === 'web' ? { type: 'date' } : {})}
+              />
+              <TextInput 
+                style={[styles.input, {flex: 1}]} 
+                placeholder="Time" 
+                value={time} 
+                onChangeText={setTime} 
+                {...(Platform.OS === 'web' ? { type: 'time' } : {})}
+              />
              </View>
              <TextInput style={styles.input} placeholder="Venue or Virtual Link" value={venue} onChangeText={setVenue} />
              
              {/* Simple Club ID selector mapping */}
-             <TextInput style={styles.input} placeholder="Club ID Selection" value={clubId} onChangeText={setClubId} editable={false} />
-             <Text style={theme.typography.small}>Mocked defaults to your admin club</Text>
+             {/* Club Selection fallback */}
+             {clubs.length > 1 ? (
+                <View style={{ marginBottom: theme.spacing.m }}>
+                  <Text style={theme.typography.small}>Assign to Club:</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                    {clubs.map(c => (
+                      <TouchableOpacity 
+                        key={c.id} 
+                        onPress={() => setClubId(c.id)}
+                        style={{ 
+                          padding: 8, 
+                          borderRadius: 8, 
+                          backgroundColor: clubId === c.id ? theme.colors.primary : theme.colors.background,
+                          borderWidth: 1,
+                          borderColor: theme.colors.primary
+                        }}
+                      >
+                        <Text style={{ color: clubId === c.id ? 'white' : theme.colors.primary, fontSize: 12 }}>{c.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+             ) : (
+                <TextInput style={styles.input} placeholder="Club" value={clubs.find(c => c.id === clubId)?.name || (clubs[0]?.name || 'No Club Available')} editable={false} />
+             )}
 
              <View style={styles.modalActions}>
                <Button title="Cancel" variant="ghost" style={{flex: 1}} onPress={() => { setModalVisible(false); setEditingEvent(null); }} />
@@ -139,6 +190,15 @@ export default function AdminEventsScreen({ navigation }) {
           </ScrollView>
         </View>
       </Modal>
+
+      <ConfirmModal 
+        visible={confirmVisible}
+        title="Delete Confirmation"
+        message="Are you sure you want to delete this event?"
+        onCancel={() => { setConfirmVisible(false); setEventToDelete(null); }}
+        onConfirm={confirmDelete}
+        theme={theme}
+      />
     </View>
   );
 }

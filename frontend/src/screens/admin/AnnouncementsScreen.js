@@ -1,10 +1,11 @@
 import React, { useContext, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, ScrollView, Modal, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, ScrollView, Modal, Alert, Platform, TouchableOpacity } from 'react-native';
 import { DataContext } from '../../context/DataContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import Toast from 'react-native-toast-message';
+import ConfirmModal from '../../components/ConfirmModal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function AnnouncementsScreen() {
@@ -15,6 +16,8 @@ export default function AnnouncementsScreen() {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [notifToDelete, setNotifToDelete] = useState(null);
 
   const styles = useMemo(() => getStyles(theme), [theme]);
 
@@ -32,22 +35,20 @@ export default function AnnouncementsScreen() {
   };
 
   const handleDelete = (notificationId) => {
-    const performDelete = async () => {
-      const res = await deleteNotification(notificationId);
-      if (res.success) Toast.show({ type: 'success', text1: 'Alert deleted' });
-      else Toast.show({ type: 'error', text1: 'Deletion failed' });
-    };
+    setNotifToDelete(notificationId);
+    setConfirmVisible(true);
+  };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to delete this alert?')) {
-        performDelete();
-      }
-    } else {
-      Alert.alert('Delete Alert', 'Are you sure you want to delete this alert?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: performDelete }
-      ]);
-    }
+  const confirmDelete = async () => {
+    if (!notifToDelete) return;
+    setLoading(true);
+    const res = await deleteNotification(notifToDelete);
+    setLoading(false);
+    setConfirmVisible(false);
+    setNotifToDelete(null);
+    
+    if (res.success) Toast.show({ type: 'success', text1: 'Alert deleted' });
+    else Toast.show({ type: 'error', text1: 'Deletion failed' });
   };
 
   const handleBroadcast = async () => {
@@ -118,6 +119,15 @@ export default function AnnouncementsScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      <ConfirmModal 
+        visible={confirmVisible}
+        title="Delete Confirmation"
+        message="Are you sure you want to delete this alert?"
+        onCancel={() => { setConfirmVisible(false); setNotifToDelete(null); }}
+        onConfirm={confirmDelete}
+        theme={theme}
+      />
     </View>
   );
 }

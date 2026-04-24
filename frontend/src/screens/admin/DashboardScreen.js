@@ -73,7 +73,7 @@ export default function DashboardScreen() {
 
       {/* Insights Block */}
       <View>
-        <Text style={[theme.typography.h3, { marginBottom: theme.spacing.s }]}>Intelligence System</Text>
+        <Text style={[theme.typography.h3, { marginBottom: theme.spacing.s }]}>Club Insights</Text>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.m, marginBottom: theme.spacing.m }}>
             <MaterialCommunityIcons name="trending-up" size={24} color={theme.colors.secondary} />
@@ -81,7 +81,7 @@ export default function DashboardScreen() {
                <Text style={theme.typography.caption}>Most Active Club 📈</Text>
                <Text style={theme.typography.h3}>{topClub?.name || 'N/A'}</Text>
             </View>
-            <Badge label={`${topClub?.memberCount || 0} Mem`} status="primary" />
+            <Badge label={`${topClub?.memberCount || 0} ${ (topClub?.memberCount === 1) ? 'Member' : 'Members' }`} status="primary" />
           </View>
           
           <View style={styles.divider} />
