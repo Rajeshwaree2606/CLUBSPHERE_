@@ -1,5 +1,5 @@
 import React, { useContext, useState, useMemo } from 'react';
-import { View, Text, FlatList, TextInput, Modal, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
+import { View, Text, FlatList, TextInput, Modal, StyleSheet, ScrollView, Alert, Platform, TouchableOpacity } from 'react-native';
 import { DataContext } from '../../context/DataContext';
 import { AuthContext } from '../../context/AuthContext';
 import { ThemeContext } from '../../context/ThemeContext';
@@ -7,6 +7,7 @@ import Card from '../../components/Card';
 import Button from '../../components/Button';
 import Badge from '../../components/Badge';
 import Toast from 'react-native-toast-message';
+import ConfirmModal from '../../components/ConfirmModal';
 
 export default function AdminClubsScreen() {
   const { clubs, createClub, editClub, deleteClub } = useContext(DataContext);
@@ -17,6 +18,8 @@ export default function AdminClubsScreen() {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [loading, setLoading] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [clubToDelete, setClubToDelete] = useState(null);
 
   const styles = useMemo(() => getStyles(theme), [theme]);
 
@@ -35,22 +38,20 @@ export default function AdminClubsScreen() {
   };
 
   const handleDelete = (clubId) => {
-    const performDelete = async () => {
-      const res = await deleteClub(clubId);
-      if (res.success) Toast.show({ type: 'success', text1: 'Club deleted' });
-      else Toast.show({ type: 'error', text1: 'Deletion failed' });
-    };
+    setClubToDelete(clubId);
+    setConfirmVisible(true);
+  };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to delete this club?')) {
-        performDelete();
-      }
-    } else {
-      Alert.alert('Delete Club', 'Are you sure you want to delete this club?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: performDelete }
-      ]);
-    }
+  const confirmDelete = async () => {
+    if (!clubToDelete) return;
+    setLoading(true);
+    const res = await deleteClub(clubToDelete);
+    setLoading(false);
+    setConfirmVisible(false);
+    setClubToDelete(null);
+    
+    if (res.success) Toast.show({ type: 'success', text1: 'Club deleted' });
+    else Toast.show({ type: 'error', text1: 'Deletion failed' });
   };
 
   const handleSave = async () => {
@@ -63,7 +64,7 @@ export default function AdminClubsScreen() {
     if (editingClub) {
       res = await editClub(editingClub.id, { ...editingClub, name, description: desc });
     } else {
-      res = await createClub({ name, description: desc, adminId: user.id || 'admin', memberCount: 1, joined: false });
+      res = await createClub({ name, description: desc, adminId: user.id || 'admin' });
     }
     setLoading(false);
     
@@ -80,7 +81,7 @@ export default function AdminClubsScreen() {
     <Card style={styles.cardContainer}>
       <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'}}>
          <Text style={[theme.typography.h3, {flex: 1}]}>{item.name}</Text>
-         <Badge label={`${item.memberCount} Members`} status="primary" />
+         <Badge label={`${item.memberCount || 0} ${ (item.memberCount === 1) ? 'Member' : 'Members' }`} status="primary" />
       </View>
       <Text style={[theme.typography.caption, {marginTop: theme.spacing.s, marginBottom: theme.spacing.m}]}>{item.description}</Text>
       <View style={{flexDirection: 'row', justifyContent: 'flex-end', gap: theme.spacing.s}}>
@@ -126,6 +127,15 @@ export default function AdminClubsScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      <ConfirmModal 
+        visible={confirmVisible}
+        title="Delete Confirmation"
+        message="Are you sure you want to delete this club?"
+        onCancel={() => { setConfirmVisible(false); setClubToDelete(null); }}
+        onConfirm={confirmDelete}
+        theme={theme}
+      />
     </View>
   );
 }

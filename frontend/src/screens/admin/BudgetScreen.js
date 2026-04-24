@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, FlatList, TextInput, Modal, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
+import { View, Text, FlatList, TextInput, Modal, StyleSheet, ScrollView, Alert, Platform, TouchableOpacity } from 'react-native';
 import { DataContext } from '../../context/DataContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import { formatCurrency } from '../../utils/currency';
@@ -7,6 +7,7 @@ import Button from '../../components/Button';
 import Card from '../../components/Card';
 import Toast from 'react-native-toast-message';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import ConfirmModal from '../../components/ConfirmModal';
 
 export default function AdminBudgetScreen() {
   const { budgets, addBudget, editBudget, deleteBudget } = useContext(DataContext);
@@ -17,6 +18,8 @@ export default function AdminBudgetScreen() {
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('expense');
   const [loading, setLoading] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState(null);
 
   const totalIncome = budgets.filter(b => b.type === 'income').reduce((a, b) => a + b.amount, 0);
   const totalExpense = budgets.filter(b => b.type === 'expense').reduce((a, b) => a + b.amount, 0);
@@ -36,22 +39,20 @@ export default function AdminBudgetScreen() {
   };
 
   const handleDelete = (recordId) => {
-    const performDelete = async () => {
-      const res = await deleteBudget(recordId);
-      if (res.success) Toast.show({ type: 'success', text1: 'Record deleted' });
-      else Toast.show({ type: 'error', text1: 'Deletion failed' });
-    };
+    setRecordToDelete(recordId);
+    setConfirmVisible(true);
+  };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to delete this transaction?')) {
-        performDelete();
-      }
-    } else {
-      Alert.alert('Delete Record', 'Are you sure you want to delete this transaction?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: performDelete }
-      ]);
-    }
+  const confirmDelete = async () => {
+    if (!recordToDelete) return;
+    setLoading(true);
+    const res = await deleteBudget(recordToDelete);
+    setLoading(false);
+    setConfirmVisible(false);
+    setRecordToDelete(null);
+    
+    if (res.success) Toast.show({ type: 'success', text1: 'Record deleted' });
+    else Toast.show({ type: 'error', text1: 'Deletion failed' });
   };
 
   const handleAdd = async () => {
@@ -149,8 +150,15 @@ export default function AdminBudgetScreen() {
                style={[styles.input, { backgroundColor: theme.colors.background, padding: theme.spacing.m, borderRadius: theme.borderRadius.m, fontSize: 16, color: theme.colors.text, marginBottom: theme.spacing.m }]} 
                placeholder="Amount (₹)" 
                placeholderTextColor={theme.colors.textSecondary}
-               value={amount} 
-               onChangeText={setAmount} 
+                value={amount} 
+                onChangeText={(text) => {
+                  // Allow only numbers and decimal point
+                  const cleaned = text.replace(/[^0-9.]/g, '');
+                  // Ensure only one decimal point
+                  const parts = cleaned.split('.');
+                  if (parts.length > 2) return;
+                  setAmount(cleaned);
+                }} 
                keyboardType="numeric" 
              />
 
@@ -161,6 +169,15 @@ export default function AdminBudgetScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      <ConfirmModal 
+        visible={confirmVisible}
+        title="Delete Confirmation"
+        message="Are you sure you want to delete this transaction?"
+        onCancel={() => { setConfirmVisible(false); setRecordToDelete(null); }}
+        onConfirm={confirmDelete}
+        theme={theme}
+      />
     </View>
   );
 }

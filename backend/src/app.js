@@ -24,7 +24,10 @@ const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:8081",
   "http://localhost:8082",
+  "http://10.10.8.71:8081",
+  "http://10.10.8.71:8082",
   "https://clubsphere-two.vercel.app",
+  "https://clubsphere-bhuvan-somisettys-projects.vercel.app",
   "https://clubsphere-sigma.vercel.app",
 ].filter(Boolean);
 
@@ -48,11 +51,9 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
-// Apply CORS middleware
 app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // Handle preflight across all routes
 
-// Handle preflight requests for all routes
-app.options("*", cors(corsOptions));
 
 app.use(helmet());
 app.use(morgan("dev"));

@@ -78,6 +78,22 @@ export default function ProfileScreen() {
 
       <View style={styles.logoutContainer}>
          <Button title="Log Out" variant="danger" onPress={logout} icon="logout" />
+         <Button 
+            title="Reset App (Dev Only)" 
+            variant="ghost" 
+            onPress={() => {
+              Alert.alert(
+                "Reset App",
+                "This will clear all local storage and log you out. Continue?",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Reset", style: "destructive", onPress: logout }
+                ]
+              );
+            }} 
+            icon="delete-sweep" 
+            style={{ marginTop: theme.spacing.m }}
+         />
       </View>
 
     </ScrollView>

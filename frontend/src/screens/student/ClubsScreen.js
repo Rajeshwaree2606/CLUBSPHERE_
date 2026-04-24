@@ -62,7 +62,7 @@ export default function ClubsScreen() {
             <View style={styles.memberBadge}>
               <MaterialCommunityIcons name="account-multiple" size={14} color={theme.colors.primary} />
               <Text style={[styles.memberCount, { color: theme.colors.textSecondary }]}>
-                {item.memberCount} members
+                {item.memberCount || 0} {item.memberCount === 1 ? 'member' : 'members'}
               </Text>
             </View>
           </View>
