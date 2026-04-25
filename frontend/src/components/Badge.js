@@ -1,63 +1,32 @@
-import React, { useContext } from 'react';
+/**
+ * Badge.js — Premium pill badge component.
+ */
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { ThemeContext } from '../context/ThemeContext';
+import { COLORS, RADIUS } from '../utils/theme';
 
-export default function Badge({ label, status = 'primary' }) {
-  const { theme } = useContext(ThemeContext);
+const STATUS_STYLES = {
+  primary: { bg: COLORS.goldGlow,    border: COLORS.goldDim,   text: COLORS.gold         },
+  success: { bg: COLORS.successGlow, border: `${COLORS.success}44`, text: COLORS.success },
+  error:   { bg: COLORS.errorGlow,   border: `${COLORS.error}44`,   text: COLORS.error   },
+  warning: { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)', text: COLORS.warning },
+  default: { bg: COLORS.bgElevated,  border: COLORS.border,    text: COLORS.textSecond   },
+};
 
-  const getBackgroundColor = () => {
-    switch (status) {
-      case 'primary':
-        return theme.colors.primaryLight;
-      case 'secondary':
-        return theme.colors.secondaryLight;
-      case 'accent':
-        return theme.colors.accentLight || '#fef3c7';
-      case 'error':
-        return theme.colors.errorLight;
-      case 'success':
-        return theme.colors.successLight || '#dcfce7';
-      case 'warning':
-        return theme.colors.warningLight || '#fef3c7';
-      default:
-        return theme.colors.primaryLight;
-    }
-  };
-
-  const getTextColor = () => {
-    switch (status) {
-      case 'primary':
-        return theme.colors.primary;
-      case 'secondary':
-        return theme.colors.secondary;
-      case 'accent':
-        return theme.colors.accent;
-      case 'error':
-        return theme.colors.error;
-      case 'success':
-        return theme.colors.success || '#22c55e';
-      case 'warning':
-        return theme.colors.warning || '#f59e0b';
-      default:
-        return theme.colors.primary;
-    }
-  };
-
+export default function Badge({ label, status = 'default' }) {
+  const s = STATUS_STYLES[status] || STATUS_STYLES.default;
   return (
-    <View style={[styles.badge, { backgroundColor: getBackgroundColor(), borderRadius: theme.borderRadius.s }]}>
-      <Text style={[styles.text, { color: getTextColor() }]}>{label}</Text>
+    <View style={[styles.badge, { backgroundColor: s.bg, borderColor: s.border }]}>
+      <Text style={[styles.text, { color: s.text }]}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   badge: {
-    paddingVertical: 4,
-    paddingHorizontal: 12,
+    borderRadius: RADIUS.pill, borderWidth: 1,
+    paddingVertical: 3, paddingHorizontal: 10,
     alignSelf: 'flex-start',
   },
-  text: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  text: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
 });

@@ -1,64 +1,129 @@
 import React, { useContext } from 'react';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ThemeContext } from '../context/ThemeContext';
-import DashboardScreen from '../screens/admin/DashboardScreen';
-import ClubsScreen from '../screens/admin/ClubsScreen';
-import EventsScreen from '../screens/admin/EventsScreen';
-import BudgetScreen from '../screens/admin/BudgetScreen';
-import EventAttendanceScreen from '../screens/admin/EventAttendanceScreen';
-import AnnouncementsScreen from '../screens/admin/AnnouncementsScreen';
-import ProfileScreen from '../screens/admin/ProfileScreen';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, RADIUS, SHADOWS } from '../utils/theme';
 
-const Tab = createBottomTabNavigator();
+import DashboardScreen        from '../screens/admin/DashboardScreen';
+import ClubsScreen            from '../screens/admin/ClubsScreen';
+import EventsScreen           from '../screens/admin/EventsScreen';
+import BudgetScreen           from '../screens/admin/BudgetScreen';
+import AnnouncementsScreen    from '../screens/admin/AnnouncementsScreen';
+import ProfileScreen          from '../screens/admin/ProfileScreen';
+import EventAttendanceScreen  from '../screens/admin/EventAttendanceScreen';
+
+const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function AdminEventsStack() {
-  const { theme } = useContext(ThemeContext);
   return (
-    <Stack.Navigator screenOptions={{ 
-      headerShown: false,
-      headerStyle: { backgroundColor: theme.colors.surface },
-      headerTintColor: theme.colors.primary,
-    }}>
-      <Stack.Screen name="AdminEventsList" component={EventsScreen} />
-      <Stack.Screen name="EventAttendance" component={EventAttendanceScreen} />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="AdminEventsList"  component={EventsScreen} />
+      <Stack.Screen name="EventAttendance"  component={EventAttendanceScreen} />
     </Stack.Navigator>
   );
 }
 
-export default function AdminTabs() {
-  const { theme, toggleTheme, isDarkMode } = useContext(ThemeContext);
+const TABS = [
+  { name: 'Dashboard', component: DashboardScreen,     icon: 'view-dashboard', label: 'Home'   },
+  { name: 'Clubs',     component: ClubsScreen,         icon: 'account-group',  label: 'Clubs'  },
+  { name: 'Events',    component: AdminEventsStack,     icon: 'calendar-edit',  label: 'Events' },
+  { name: 'Budget',    component: BudgetScreen,         icon: 'chart-finance',  label: 'Budget' },
+  { name: 'Alerts',    component: AnnouncementsScreen,  icon: 'bullhorn',       label: 'Alerts' },
+  { name: 'Profile',   component: ProfileScreen,        icon: 'account-circle', label: 'Me'     },
+];
 
+export default function AdminTabs() {
   return (
-    <Tab.Navigator screenOptions={{
-      tabBarActiveTintColor: theme.colors.primary,
-      tabBarInactiveTintColor: theme.colors.textSecondary,
-      headerStyle: { backgroundColor: theme.colors.primary, borderBottomColor: theme.colors.border, borderBottomWidth: 1 },
-      headerTintColor: theme.colors.surface,
-      headerTitleStyle: { fontWeight: '800' },
-      tabBarStyle: { borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface },
-      headerRight: () => (
-        <TouchableOpacity 
-          onPress={toggleTheme}
-          style={{ marginRight: 16, padding: 8 }}
-        >
-          <MaterialCommunityIcons 
-            name={isDarkMode ? 'white-balance-sunny' : 'moon-waning-crescent'} 
-            size={24} 
-            color={theme.colors.surface} 
-          />
-        </TouchableOpacity>
-      ),
-    }}>
-      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="view-dashboard" color={color} size={size} /> }} />
-      <Tab.Screen name="Clubs" component={ClubsScreen} options={{ tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="account-group" color={color} size={size} /> }} />
-      <Tab.Screen name="Events" component={AdminEventsStack} options={{ tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="calendar-edit" color={color} size={size} /> }} />
-      <Tab.Screen name="Budget" component={BudgetScreen} options={{ tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="finance" color={color} size={size} /> }} />
-      <Tab.Screen name="Alerts" component={AnnouncementsScreen} options={{ tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="bullhorn" color={color} size={size} /> }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="account-circle-outline" color={color} size={size} /> }} />
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarShowLabel: true,
+        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: COLORS.indigo,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarLabelStyle: styles.tabLabel,
+        tabBarItemStyle: styles.tabItem,
+        tabBarBackground: () => (
+          <View style={styles.tabBarBg}>
+            <View style={styles.tabBarBorder} />
+          </View>
+        ),
+        tabBarIcon: ({ color, focused }) => {
+          const tab = TABS.find(t => t.name === route.name);
+          return (
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              {focused && (
+                <LinearGradient
+                  colors={['rgba(79,110,247,0.2)', 'rgba(79,110,247,0.05)']}
+                  style={StyleSheet.absoluteFill}
+                  borderRadius={RADIUS.m}
+                />
+              )}
+              <MaterialCommunityIcons
+                name={tab?.icon || 'circle'}
+                size={22}
+                color={color}
+              />
+            </View>
+          );
+        },
+      })}
+    >
+      {TABS.map(t => (
+        <Tab.Screen
+          key={t.name}
+          name={t.name}
+          component={t.component}
+          options={{ tabBarLabel: t.label }}
+        />
+      ))}
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    position: 'absolute',
+    borderTopWidth: 0,
+    backgroundColor: 'transparent',
+    height: Platform.OS === 'web' ? 64 : 70,
+    paddingBottom: Platform.OS === 'web' ? 6 : 10,
+    elevation: 0,
+  },
+  tabBarBg: {
+    flex: 1,
+    backgroundColor: COLORS.bgCard,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    ...SHADOWS.card,
+  },
+  tabBarBorder: {
+    position: 'absolute',
+    top: 0, left: 40, right: 40, height: 1,
+    backgroundColor: COLORS.gold,
+    opacity: 0.25,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    marginTop: 2,
+  },
+  tabItem: {
+    paddingTop: 8,
+  },
+  iconWrap: {
+    width: 40, height: 32,
+    borderRadius: RADIUS.m,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  iconWrapActive: {
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.3)',
+  },
+});

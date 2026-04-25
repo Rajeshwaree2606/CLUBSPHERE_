@@ -1,119 +1,190 @@
-import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { DataContext } from '../../context/DataContext';
-import { ThemeContext } from '../../context/ThemeContext';
-import Toast from 'react-native-toast-message';
-import Button from '../../components/Button';
+import React, { useContext, useEffect, useState } from 'react';
+import {
+  View, Text, StyleSheet, FlatList, ActivityIndicator,
+  TouchableOpacity, StatusBar,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
+import { DataContext } from '../../context/DataContext';
+import { COLORS, GRADIENTS, RADIUS, SPACING, SHADOWS } from '../../utils/theme';
+import PremiumCard from '../../components/PremiumCard';
+import GradientButton from '../../components/GradientButton';
 
 export default function EventAttendanceScreen({ route, navigation }) {
   const { eventId } = route.params;
   const { events, getAttendance, markAttendance } = useContext(DataContext);
-  const { theme } = useContext(ThemeContext);
   const [attendees, setAttendees] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const styles = useMemo(() => getStyles(theme), [theme]);
-
   const event = events.find(e => e.id === eventId);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
+    setLoading(true);
     const data = await getAttendance(eventId);
-    setAttendees(data);
+    setAttendees(data || []);
     setLoading(false);
   };
 
-  const handleStatusChange = async (userId, targetStatus) => {
-    // Optimistic UI Update
-    setAttendees(prev => prev.map(a => a.userId === userId ? { ...a, status: targetStatus } : a));
-    const res = await markAttendance(eventId, userId, targetStatus);
+  const handleMark = async (userId, status) => {
+    // Optimistic update
+    setAttendees(prev => prev.map(a => a.userId === userId ? { ...a, status } : a));
+    const res = await markAttendance(eventId, userId, status);
     if (res.success) {
-      Toast.show({ type: 'success', text1: `Marked as ${targetStatus.toUpperCase()}` });
+      Toast.show({ type: 'success', text1: `Marked ${status === 'present' ? 'Present ✓' : 'Absent'}` });
     } else {
-      Toast.show({ type: 'error', text1: 'Database error' });
-      loadData(); // Revert
+      Toast.show({ type: 'error', text1: 'Failed to update' });
+      loadData(); // revert
     }
   };
 
+  const presentCount = attendees.filter(a => a.status === 'present').length;
+  const rate = attendees.length > 0 ? Math.round((presentCount / attendees.length) * 100) : 0;
+
   const renderItem = ({ item }) => {
     const isPresent = item.status === 'present';
-    const isAbsent = item.status === 'absent';
-
+    const isAbsent  = item.status === 'absent';
     return (
-      <View style={styles.userRow}>
-        <View style={{flex: 1}}>
-          <Text style={styles.userName}>{item.name}</Text>
-          <Text style={theme.typography.small}>ID: {item.userId}</Text>
+      <PremiumCard style={styles.row} variant={isPresent ? 'gold' : 'default'}>
+        <View style={styles.rowAvatar}>
+          <Text style={styles.rowAvatarText}>{item.name?.[0]?.toUpperCase() || '?'}</Text>
         </View>
-        <View style={styles.actionBlock}>
-          <Button 
-            title="Present" 
-            size="sm" 
-            variant={isPresent ? 'primary' : 'outline'}
-            style={[styles.smallBtn, isPresent && { backgroundColor: theme.colors.secondary }]}
-            onPress={() => handleStatusChange(item.userId, 'present')} 
-          />
-          <Button 
-            title="Absent" 
-            size="sm" 
-            variant={isAbsent ? 'danger' : 'outline'}
-            style={styles.smallBtn}
-            onPress={() => handleStatusChange(item.userId, 'absent')} 
-          />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowName}>{item.name}</Text>
+          <Text style={styles.rowId}>ID: {item.userId}</Text>
         </View>
-      </View>
+        <View style={styles.rowBtns}>
+          <TouchableOpacity
+            style={[styles.markBtn, isPresent && styles.markBtnPresent]}
+            onPress={() => handleMark(item.userId, 'present')}
+          >
+            {isPresent && <LinearGradient colors={GRADIENTS.gold} style={StyleSheet.absoluteFill} borderRadius={RADIUS.m} />}
+            <MaterialCommunityIcons name="check" size={16} color={isPresent ? '#000' : COLORS.textMuted} />
+            <Text style={[styles.markBtnText, isPresent && { color: '#000', fontWeight: '700' }]}>Present</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.markBtn, isAbsent && styles.markBtnAbsent]}
+            onPress={() => handleMark(item.userId, 'absent')}
+          >
+            {isAbsent && <LinearGradient colors={GRADIENTS.crimson} style={StyleSheet.absoluteFill} borderRadius={RADIUS.m} />}
+            <MaterialCommunityIcons name="close" size={16} color={isAbsent ? '#fff' : COLORS.textMuted} />
+            <Text style={[styles.markBtnText, isAbsent && { color: '#fff', fontWeight: '700' }]}>Absent</Text>
+          </TouchableOpacity>
+        </View>
+      </PremiumCard>
     );
   };
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color={theme.colors.primary} /></View>;
-
-  const presentCount = attendees.filter(a => a.status === 'present').length;
-  const attendanceRate = attendees.length > 0 ? Math.round((presentCount / attendees.length) * 100) : 0;
-
   return (
-    <View style={styles.container}>
-      {/* Header Modal Styling Handle */}
-      <View style={styles.handle} />
-      
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+
+      {/* Header */}
       <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.s }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: theme.spacing.s }}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-          <Text style={theme.typography.h2}>Attendance Roster</Text>
-        </View>
-        <Text style={theme.typography.caption}>Tracking for: {event?.title}</Text>
-        
-        <View style={styles.statRow}>
-           <View style={{flex: 1}}><Text style={theme.typography.small}>Total Size</Text><Text style={[theme.typography.h3, {color: theme.colors.primary}]}>{attendees.length}</Text></View>
-           <View style={{flex: 1}}><Text style={theme.typography.small}>Check-ins</Text><Text style={[theme.typography.h3, {color: theme.colors.secondary}]}>{presentCount}</Text></View>
-           <View style={{flex: 1}}><Text style={theme.typography.small}>Yield</Text><Text style={[theme.typography.h3, {color: theme.colors.accent}]}>{attendanceRate}%</Text></View>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <MaterialCommunityIcons name="arrow-left" size={20} color={COLORS.gold} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>Attendance</Text>
+          <Text style={styles.headerSub} numberOfLines={1}>{event?.title || 'Event'}</Text>
         </View>
       </View>
 
-      <FlatList 
-        data={attendees}
-        keyExtractor={item => item.userId}
-        renderItem={renderItem}
-        contentContainerStyle={{ padding: theme.spacing.m }}
-        ListEmptyComponent={<Text style={theme.typography.caption}>No attendees registered yet.</Text>}
+      {/* Stats */}
+      {!loading && (
+        <View style={styles.statsRow}>
+          {[
+            { label: 'Total',    value: attendees.length, color: COLORS.textPrimary },
+            { label: 'Present',  value: presentCount,     color: COLORS.success },
+            { label: 'Absent',   value: attendees.length - presentCount, color: COLORS.error },
+            { label: 'Rate',     value: `${rate}%`,       color: COLORS.gold },
+          ].map(s => (
+            <View key={s.label} style={styles.statCard}>
+              <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
+              <Text style={styles.statLabel}>{s.label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Gold divider */}
+      <LinearGradient
+        colors={['transparent', COLORS.gold, 'transparent']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        style={styles.divider}
       />
+
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.gold} />
+          <Text style={styles.loadingText}>Loading attendees...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={attendees}
+          keyExtractor={item => item.userId}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <MaterialCommunityIcons name="account-off-outline" size={56} color={COLORS.textMuted} />
+              <Text style={styles.emptyText}>No attendees registered</Text>
+              <Text style={styles.emptySub}>Students who RSVP will appear here</Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
 
-const getStyles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.surface },
-  handle: { width: 40, height: 4, backgroundColor: theme.colors.border, borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: theme.spacing.m },
-  header: { padding: theme.spacing.m, borderBottomWidth: 1, borderColor: theme.colors.border },
-  statRow: { flexDirection: 'row', marginTop: theme.spacing.m, paddingVertical: theme.spacing.m, borderTopWidth: 1, borderColor: theme.colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background },
-  userRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: theme.spacing.m, borderBottomWidth: 1, borderColor: theme.colors.background },
-  userName: { ...theme.typography.body, fontWeight: '700' },
-  actionBlock: { flexDirection: 'row', gap: theme.spacing.s },
-  smallBtn: { paddingVertical: 6, paddingHorizontal: 12 }
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: COLORS.bg },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.m,
+    paddingHorizontal: SPACING.l, paddingTop: SPACING.xxl,
+    paddingBottom: SPACING.l, borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  backBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: COLORS.bgElevated, borderWidth: 1, borderColor: COLORS.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.5 },
+  headerSub: { fontSize: 13, color: COLORS.textSecond, marginTop: 2 },
+  statsRow: {
+    flexDirection: 'row', paddingHorizontal: SPACING.l, paddingVertical: SPACING.m,
+  },
+  statCard: { flex: 1, alignItems: 'center' },
+  statValue: { fontSize: 24, fontWeight: '800', letterSpacing: -1 },
+  statLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', marginTop: 2 },
+  divider: { height: 1, opacity: 0.25 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.m },
+  loadingText: { color: COLORS.textSecond, fontSize: 14 },
+  list: { padding: SPACING.l, paddingBottom: 100 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m, marginBottom: SPACING.s },
+  rowAvatar: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: COLORS.bgElevated, borderWidth: 1, borderColor: COLORS.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  rowAvatarText: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
+  rowName: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
+  rowId:   { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  rowBtns: { flexDirection: 'row', gap: SPACING.s },
+  markBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingVertical: 7, paddingHorizontal: 10,
+    borderRadius: RADIUS.m, backgroundColor: COLORS.bgElevated,
+    borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
+  },
+  markBtnPresent: { borderColor: COLORS.gold },
+  markBtnAbsent:  { borderColor: COLORS.crimson },
+  markBtnText:    { fontSize: 12, color: COLORS.textSecond, fontWeight: '500' },
+  empty: { alignItems: 'center', paddingTop: 60, gap: SPACING.m },
+  emptyText: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
+  emptySub:  { fontSize: 14, color: COLORS.textSecond },
 });

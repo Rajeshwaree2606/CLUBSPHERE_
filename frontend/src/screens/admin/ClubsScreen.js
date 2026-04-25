@@ -1,153 +1,182 @@
-import React, { useContext, useState, useMemo } from 'react';
-import { View, Text, FlatList, TextInput, Modal, StyleSheet, ScrollView, Alert, Platform, TouchableOpacity } from 'react-native';
-import { DataContext } from '../../context/DataContext';
-import { AuthContext } from '../../context/AuthContext';
-import { ThemeContext } from '../../context/ThemeContext';
-import Card from '../../components/Card';
-import Button from '../../components/Button';
-import Badge from '../../components/Badge';
+import React, { useContext, useState } from 'react';
+import {
+  View, Text, FlatList, StyleSheet, TouchableOpacity,
+  StatusBar, ScrollView,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
+import { DataContext } from '../../context/DataContext';
+import { COLORS, GRADIENTS, RADIUS, SPACING, SHADOWS } from '../../utils/theme';
+import PremiumCard from '../../components/PremiumCard';
+import PremiumModal from '../../components/PremiumModal';
+import PremiumInput from '../../components/PremiumInput';
+import GradientButton from '../../components/GradientButton';
 import ConfirmModal from '../../components/ConfirmModal';
 
 export default function AdminClubsScreen() {
   const { clubs, createClub, editClub, deleteClub } = useContext(DataContext);
-  const { user } = useContext(AuthContext);
-  const { theme } = useContext(ThemeContext);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingClub, setEditingClub] = useState(null);
-  const [name, setName] = useState('');
-  const [desc, setDesc] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [modalVisible,   setModalVisible]   = useState(false);
+  const [editingClub,    setEditingClub]    = useState(null);
+  const [name,           setName]           = useState('');
+  const [desc,           setDesc]           = useState('');
+  const [loading,        setLoading]        = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
-  const [clubToDelete, setClubToDelete] = useState(null);
+  const [clubToDelete,   setClubToDelete]   = useState(null);
 
-  const styles = useMemo(() => getStyles(theme), [theme]);
-
-  const openCreateModal = () => {
-    setEditingClub(null);
-    setName('');
-    setDesc('');
-    setModalVisible(true);
-  };
-
-  const openEditModal = (club) => {
-    setEditingClub(club);
-    setName(club.name);
-    setDesc(club.description);
-    setModalVisible(true);
-  };
-
-  const handleDelete = (clubId) => {
-    setClubToDelete(clubId);
-    setConfirmVisible(true);
-  };
+  const openCreate = () => { setEditingClub(null); setName(''); setDesc(''); setModalVisible(true); };
+  const openEdit   = c  => { setEditingClub(c); setName(c.name); setDesc(c.description || ''); setModalVisible(true); };
+  const askDelete  = id => { setClubToDelete(id); setConfirmVisible(true); };
 
   const confirmDelete = async () => {
-    if (!clubToDelete) return;
     setLoading(true);
     const res = await deleteClub(clubToDelete);
-    setLoading(false);
-    setConfirmVisible(false);
-    setClubToDelete(null);
-    
-    if (res.success) Toast.show({ type: 'success', text1: 'Club deleted' });
-    else Toast.show({ type: 'error', text1: 'Deletion failed' });
+    setLoading(false); setConfirmVisible(false); setClubToDelete(null);
+    Toast.show({ type: res.success ? 'success' : 'error', text1: res.success ? 'Club deleted' : 'Delete failed' });
   };
 
   const handleSave = async () => {
-    if (!name || !desc) {
-      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Please fill out everything.' });
-      return;
+    if (!name.trim() || !desc.trim()) {
+      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Name and description are required.' }); return;
     }
     setLoading(true);
-    let res;
-    if (editingClub) {
-      res = await editClub(editingClub.id, { ...editingClub, name, description: desc });
-    } else {
-      res = await createClub({ name, description: desc, adminId: user.id || 'admin' });
-    }
+    const res = editingClub
+      ? await editClub(editingClub.id, { name, description: desc })
+      : await createClub({ name, description: desc });
     setLoading(false);
-    
     if (res.success) {
-      Toast.show({ type: 'success', text1: editingClub ? 'Club updated' : 'Club created' });
       setModalVisible(false);
-      setName(''); setDesc(''); setEditingClub(null);
+      Toast.show({ type: 'success', text1: editingClub ? 'Club updated ✓' : 'Club created ✓' });
     } else {
-      Toast.show({ type: 'error', text1: editingClub ? 'Update failed' : 'Creation failed' });
+      Toast.show({ type: 'error', text1: res.message || 'Operation failed' });
     }
   };
 
   const renderItem = ({ item }) => (
-    <Card style={styles.cardContainer}>
-      <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-         <Text style={[theme.typography.h3, {flex: 1}]}>{item.name}</Text>
-         <Badge label={`${item.memberCount || 0} ${ (item.memberCount === 1) ? 'Member' : 'Members' }`} status="primary" />
+    <PremiumCard style={styles.card}>
+      <View style={styles.cardHeader}>
+        <LinearGradient colors={GRADIENTS.gold} style={styles.clubInitial}>
+          <Text style={styles.initialText}>{item.name?.[0]?.toUpperCase() || 'C'}</Text>
+        </LinearGradient>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.clubName}>{item.name}</Text>
+          <View style={styles.memberRow}>
+            <MaterialCommunityIcons name="account-multiple" size={12} color={COLORS.textMuted} />
+            <Text style={styles.memberText}>{item.memberCount || 0} {item.memberCount === 1 ? 'Member' : 'Members'}</Text>
+          </View>
+        </View>
       </View>
-      <Text style={[theme.typography.caption, {marginTop: theme.spacing.s, marginBottom: theme.spacing.m}]}>{item.description}</Text>
-      <View style={{flexDirection: 'row', justifyContent: 'flex-end', gap: theme.spacing.s}}>
-        <Button title="Edit" variant="outline" size="small" onPress={() => openEditModal(item)} />
-        <Button title="Delete" variant="danger" size="small" onPress={() => handleDelete(item.id)} />
+
+      {item.description ? (
+        <Text style={styles.desc} numberOfLines={2}>{item.description}</Text>
+      ) : null}
+
+      <View style={styles.cardDivider} />
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => openEdit(item)}>
+          <MaterialCommunityIcons name="pencil-outline" size={16} color={COLORS.gold} />
+          <Text style={[styles.actionText, { color: COLORS.gold }]}>Edit</Text>
+        </TouchableOpacity>
+        <View style={styles.actionSep} />
+        <TouchableOpacity style={styles.actionBtn} onPress={() => askDelete(item.id)}>
+          <MaterialCommunityIcons name="trash-can-outline" size={16} color={COLORS.error} />
+          <Text style={[styles.actionText, { color: COLORS.error }]}>Delete</Text>
+        </TouchableOpacity>
       </View>
-    </Card>
+    </PremiumCard>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Clubs</Text>
+          <Text style={styles.headerSub}>{clubs.length} club{clubs.length !== 1 ? 's' : ''} registered</Text>
+        </View>
+        <TouchableOpacity style={styles.addBtn} onPress={openCreate}>
+          <LinearGradient colors={GRADIENTS.gold} style={styles.addBtnGrad}>
+            <MaterialCommunityIcons name="plus" size={20} color="#000" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         data={clubs}
         keyExtractor={c => c.id}
         renderItem={renderItem}
-        contentContainerStyle={{ padding: theme.spacing.m, paddingBottom: 100 }}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="account-group-outline" size={56} color={COLORS.textMuted} />
+            <Text style={styles.emptyText}>No clubs yet</Text>
+            <Text style={styles.emptySub}>Tap + to create the first club</Text>
+          </View>
+        }
       />
-      
-      <View style={styles.fabContainer}>
-         <Button title="Create Club" onPress={openCreateModal} icon="plus" style={{ borderRadius: 100 }} />
-      </View>
 
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalBg}>
-          <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
-             <Text style={theme.typography.h2}>{editingClub ? 'Edit Club' : 'New Club'}</Text>
-             <Text style={[theme.typography.caption, {marginBottom: theme.spacing.l}]}>{editingClub ? 'Update club details' : 'Start a new group on campus'}</Text>
-             
-             <View style={styles.inputGroup}>
-               <Text style={styles.label}>Club Name</Text>
-               <TextInput style={styles.input} placeholder="e.g. Finance Society" value={name} onChangeText={setName} />
-             </View>
+      {/* Create/Edit modal */}
+      <PremiumModal
+        visible={modalVisible}
+        title={editingClub ? 'Edit Club' : 'New Club'}
+        subtitle={editingClub ? 'Update club details' : 'Start a new campus group'}
+        icon={editingClub ? 'pencil-circle' : 'plus-circle'}
+        onClose={() => { setModalVisible(false); setEditingClub(null); }}
+        footer={
+          <>
+            <GradientButton title="Cancel" variant="ghost" onPress={() => { setModalVisible(false); setEditingClub(null); }} style={{ flex: 1 }} fullWidth={false} />
+            <GradientButton title={editingClub ? 'Save Changes' : 'Create Club'} variant="gold" onPress={handleSave} loading={loading} style={{ flex: 1 }} fullWidth={false} />
+          </>
+        }
+      >
+        <PremiumInput label="Club Name" placeholder="e.g. Finance Society" value={name} onChangeText={setName} leftIcon="account-group-outline" autoCapitalize="words" />
+        <PremiumInput label="Description" placeholder="What is this club about?" value={desc} onChangeText={setDesc} multiline numberOfLines={3} leftIcon="text-box-outline" />
+      </PremiumModal>
 
-             <View style={styles.inputGroup}>
-               <Text style={styles.label}>Description</Text>
-               <TextInput style={[styles.input, {height: 80}]} placeholder="What is this club about?" value={desc} onChangeText={setDesc} multiline textAlignVertical="top" />
-             </View>
-
-             <View style={styles.modalActions}>
-               <Button title="Cancel" variant="ghost" style={{flex: 1}} onPress={() => { setModalVisible(false); setEditingClub(null); }} />
-               <Button title={editingClub ? 'Save' : 'Create'} style={{flex: 1}} onPress={handleSave} loading={loading} />
-             </View>
-          </ScrollView>
-        </View>
-      </Modal>
-
-      <ConfirmModal 
+      <ConfirmModal
         visible={confirmVisible}
-        title="Delete Confirmation"
-        message="Are you sure you want to delete this club?"
-        onCancel={() => { setConfirmVisible(false); setClubToDelete(null); }}
+        title="Delete Club?"
+        message="This action cannot be undone. All club data will be permanently removed."
+        confirmLabel="Delete"
         onConfirm={confirmDelete}
-        theme={theme}
+        onCancel={() => { setConfirmVisible(false); setClubToDelete(null); }}
       />
     </View>
   );
 }
 
-const getStyles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
-  cardContainer: { marginHorizontal: 'auto', width: '100%', maxWidth: 500 },
-  fabContainer: { position: 'absolute', bottom: theme.spacing.m, right: theme.spacing.m, zIndex: 10 },
-  modalBg: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 },
-  modalContent: { backgroundColor: theme.colors.surface, padding: theme.spacing.l, borderTopLeftRadius: theme.borderRadius.l, borderTopRightRadius: theme.borderRadius.l },
-  inputGroup: { marginBottom: theme.spacing.m },
-  label: { ...theme.typography.small, fontWeight: 'bold', marginBottom: 4, marginLeft: 4 },
-  input: { backgroundColor: theme.colors.background, padding: theme.spacing.m, borderRadius: theme.borderRadius.m, fontSize: 16, color: theme.colors.text },
-  modalActions: { flexDirection: 'row', gap: theme.spacing.m, marginTop: theme.spacing.m }
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: COLORS.bg },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: SPACING.l, paddingTop: SPACING.xxl, paddingBottom: SPACING.l,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  headerTitle: { fontSize: 28, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.8 },
+  headerSub:   { fontSize: 13, color: COLORS.textSecond, marginTop: 2 },
+  addBtn: { borderRadius: RADIUS.pill, overflow: 'hidden', ...SHADOWS.gold },
+  addBtnGrad: { width: 44, height: 44, borderRadius: RADIUS.pill, justifyContent: 'center', alignItems: 'center' },
+  list: { padding: SPACING.l, paddingBottom: 120 },
+  card: { marginBottom: SPACING.m },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m, marginBottom: SPACING.m },
+  clubInitial: {
+    width: 48, height: 48, borderRadius: RADIUS.m,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  initialText: { fontSize: 20, fontWeight: '800', color: '#000' },
+  clubName:    { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary, letterSpacing: -0.3 },
+  memberRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  memberText:  { fontSize: 12, color: COLORS.textMuted, fontWeight: '500' },
+  desc:        { fontSize: 13, color: COLORS.textSecond, lineHeight: 20, marginBottom: SPACING.m },
+  cardDivider: { height: 1, backgroundColor: COLORS.border, marginBottom: SPACING.m },
+  actions:     { flexDirection: 'row', alignItems: 'center' },
+  actionBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 6 },
+  actionText:  { fontSize: 13, fontWeight: '600' },
+  actionSep:   { width: 1, height: 20, backgroundColor: COLORS.border },
+  empty:       { alignItems: 'center', paddingTop: 80, gap: SPACING.m },
+  emptyText:   { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary },
+  emptySub:    { fontSize: 14, color: COLORS.textSecond },
 });

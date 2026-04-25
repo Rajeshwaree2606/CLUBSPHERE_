@@ -1,162 +1,138 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { AuthContext } from '../../context/AuthContext';
-import { ThemeContext } from '../../context/ThemeContext';
-import AuthContainer from '../../components/AuthContainer';
-import Input from '../../components/Input';
-import Button from '../../components/Button';
+import React, { useState, useContext, useRef, useEffect } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity, Animated,
+  StatusBar, ScrollView, Dimensions,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { AuthContext } from '../../context/AuthContext';
+import { COLORS, RADIUS, SPACING } from '../../utils/theme';
+import GradientButton from '../../components/GradientButton';
+import PremiumInput from '../../components/PremiumInput';
+
+const { height } = Dimensions.get('window');
 
 export default function StudentSignupScreen({ navigation }) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
+  const [name,            setName]            = useState('');
+  const [email,           setEmail]           = useState('');
+  const [password,        setPassword]        = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
   const { signup } = useContext(AuthContext);
-  const { theme } = useContext(ThemeContext);
-  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleSignup = async () => {
-    setError(null);
-    
-    if (!name || !email || !password || !confirmPassword) {
-      setError('Please fill out all required fields');
-      return;
-    }
-    
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
-    setIsLoading(true);
-    const result = await signup(name, email, password, 'student'); // Pass role
-    setIsLoading(false);
-    
-    if (!result.success) {
-      setError(result.message);
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 50, friction: 12, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const handleSignup = async () => {
+    if (!name || !email || !password || !confirmPassword) {
+      setError('Please fill out all fields.'); return;
     }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.'); return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.'); return;
+    }
+    setIsLoading(true); setError(null);
+    const result = await signup(name, email, password, 'Member');
+    setIsLoading(false);
+    if (!result.success) setError(result.message || 'Signup failed. Please try again.');
   };
 
   return (
-    <AuthContainer>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => navigation.goBack()}
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={theme.colors.text} />
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+
+
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginBottom: SPACING.xl }}>
+          <View style={styles.backCircle}>
+            <MaterialCommunityIcons name="arrow-left" size={20} color={COLORS.gold} />
+          </View>
         </TouchableOpacity>
 
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: theme.colors.text }]}>Create Account</Text>
-          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-            Join your campus community today!
-          </Text>
-        </View>
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          <View style={styles.badge}>
+            <MaterialCommunityIcons name="account-plus" size={14} color={COLORS.gold} />
+            <Text style={styles.badgeText}>New Student</Text>
+          </View>
 
-        {error ? <Text style={[styles.error, { color: theme.colors.error }]}>{error}</Text> : null}
+          <Text style={styles.title}>Join{'\n'}ClubSphere ✨</Text>
+          <Text style={styles.subtitle}>Create your account and start building your campus story</Text>
 
-        <Input
-          placeholder="Full Name"
-          value={name}
-          onChangeText={setName}
-          leftIcon="account-outline"
-        />
+          <LinearGradient colors={['transparent', COLORS.gold, 'transparent']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.divider} />
 
-        <Input
-          placeholder="Email Address"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          leftIcon="email-outline"
-        />
-        
-        <Input
-          placeholder="Phone Number (Optional)"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          leftIcon="phone-outline"
-        />
+          {error && (
+            <View style={styles.errorBox}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={16} color={COLORS.error} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
-        <Input
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          leftIcon="lock-outline"
-        />
-        
-        <Input
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-          leftIcon="lock-check-outline"
-        />
+          <PremiumInput label="Full Name" placeholder="Your full name" value={name}
+            onChangeText={setName} leftIcon="account-outline" autoCapitalize="words" />
+          <PremiumInput label="Email Address" placeholder="you@campus.edu" value={email}
+            onChangeText={setEmail} keyboardType="email-address" leftIcon="email-outline" />
+          <PremiumInput label="Password" placeholder="Min 6 characters" value={password}
+            onChangeText={setPassword} secureTextEntry leftIcon="lock-outline" />
+          <PremiumInput label="Confirm Password" placeholder="Repeat password" value={confirmPassword}
+            onChangeText={setConfirmPassword} secureTextEntry leftIcon="lock-check-outline" />
 
-        <Button 
-          title="Sign Up" 
-          onPress={handleSignup} 
-          loading={isLoading}
-          style={styles.signupButton}
-        />
+          <View style={{ marginTop: SPACING.m }}>
+            <GradientButton title="Create Account" variant="gold" icon="account-check"
+              onPress={handleSignup} loading={isLoading} />
+          </View>
 
-        <View style={styles.footer}>
-          <Text style={{ color: theme.colors.textSecondary, marginBottom: 8 }}>
-            Already have an account?
-          </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('StudentLogin')}>
-            <Text style={[styles.linkText, { color: theme.colors.primary }]}>
-              Login here
-            </Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.loginRow}>
+            <Text style={styles.loginText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('StudentLogin')}>
+              <Text style={styles.loginLink}>Sign in →</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </ScrollView>
-    </AuthContainer>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    flexGrow: 1,
+  root: { flex: 1, backgroundColor: COLORS.bg },
+
+  scroll: {
+    flexGrow: 1, paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xxl,
   },
-  backButton: {
-    alignSelf: 'flex-start',
-    marginBottom: 20,
-    padding: 4,
+  backCircle: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.bgElevated,
+    borderWidth: 1, borderColor: COLORS.border, justifyContent: 'center',
+    alignItems: 'center', alignSelf: 'flex-start',
   },
-  header: {
-    marginBottom: 24,
+  badge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: COLORS.goldGlow, borderWidth: 1, borderColor: COLORS.goldDim,
+    borderRadius: RADIUS.pill, paddingVertical: 5, paddingHorizontal: 12,
+    alignSelf: 'flex-start', marginBottom: SPACING.l,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    marginBottom: 8,
+  badgeText: { fontSize: 12, color: COLORS.gold, fontWeight: '700', letterSpacing: 0.5 },
+  title: { fontSize: 40, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -1.5, lineHeight: 48, marginBottom: SPACING.s },
+  subtitle: { fontSize: 15, color: COLORS.textSecond, marginBottom: SPACING.l, lineHeight: 22 },
+  divider: { height: 1, opacity: 0.35, marginBottom: SPACING.l },
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.s,
+    backgroundColor: COLORS.errorGlow, borderWidth: 1, borderColor: `${COLORS.error}44`,
+    borderRadius: RADIUS.m, padding: SPACING.m, marginBottom: SPACING.m,
   },
-  subtitle: {
-    fontSize: 16,
-  },
-  error: {
-    marginBottom: 16,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  signupButton: {
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  footer: {
-    alignItems: 'center',
-    paddingBottom: 20,
-  },
-  linkText: {
-    fontSize: 16,
-    fontWeight: '700',
-  }
+  errorText: { color: COLORS.error, fontSize: 13, flex: 1 },
+  loginRow: { flexDirection: 'row', justifyContent: 'center', marginTop: SPACING.xl },
+  loginText: { color: COLORS.textSecond, fontSize: 14 },
+  loginLink: { color: COLORS.gold, fontSize: 14, fontWeight: '700' },
 });

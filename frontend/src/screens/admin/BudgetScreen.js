@@ -1,198 +1,251 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, FlatList, TextInput, Modal, StyleSheet, ScrollView, Alert, Platform, TouchableOpacity } from 'react-native';
-import { DataContext } from '../../context/DataContext';
-import { ThemeContext } from '../../context/ThemeContext';
-import { formatCurrency } from '../../utils/currency';
-import Button from '../../components/Button';
-import Card from '../../components/Card';
-import Toast from 'react-native-toast-message';
+import {
+  View, Text, FlatList, StyleSheet, TouchableOpacity, StatusBar,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
+import { DataContext } from '../../context/DataContext';
+import { COLORS, GRADIENTS, RADIUS, SPACING, SHADOWS } from '../../utils/theme';
+import PremiumCard from '../../components/PremiumCard';
+import PremiumModal from '../../components/PremiumModal';
+import PremiumInput from '../../components/PremiumInput';
+import GradientButton from '../../components/GradientButton';
 import ConfirmModal from '../../components/ConfirmModal';
+import { formatCurrency } from '../../utils/currency';
 
 export default function AdminBudgetScreen() {
   const { budgets, addBudget, editBudget, deleteBudget } = useContext(DataContext);
-  const { theme } = useContext(ThemeContext);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingRecord, setEditingRecord] = useState(null);
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
-  const [type, setType] = useState('expense');
-  const [loading, setLoading] = useState(false);
+  const [modalVisible,   setModalVisible]   = useState(false);
+  const [editingRecord,  setEditingRecord]  = useState(null);
+  const [title,          setTitle]          = useState('');
+  const [amount,         setAmount]         = useState('');
+  const [type,           setType]           = useState('expense');
+  const [loading,        setLoading]        = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState(null);
 
-  const totalIncome = budgets.filter(b => b.type === 'income').reduce((a, b) => a + b.amount, 0);
+  const totalIncome  = budgets.filter(b => b.type === 'income').reduce((a, b) => a + b.amount, 0);
   const totalExpense = budgets.filter(b => b.type === 'expense').reduce((a, b) => a + b.amount, 0);
+  const balance = totalIncome - totalExpense;
 
-  const openCreateModal = () => {
-    setEditingRecord(null);
-    setTitle(''); setAmount(''); setType('expense');
-    setModalVisible(true);
-  };
-
-  const openEditModal = (record) => {
-    setEditingRecord(record);
-    setTitle(record.title);
-    setAmount(record.amount.toString());
-    setType(record.type);
-    setModalVisible(true);
-  };
-
-  const handleDelete = (recordId) => {
-    setRecordToDelete(recordId);
-    setConfirmVisible(true);
-  };
+  const openCreate = () => { setEditingRecord(null); setTitle(''); setAmount(''); setType('expense'); setModalVisible(true); };
+  const openEdit   = r  => { setEditingRecord(r); setTitle(r.title); setAmount(String(r.amount)); setType(r.type); setModalVisible(true); };
+  const askDelete  = id => { setRecordToDelete(id); setConfirmVisible(true); };
 
   const confirmDelete = async () => {
-    if (!recordToDelete) return;
     setLoading(true);
     const res = await deleteBudget(recordToDelete);
-    setLoading(false);
-    setConfirmVisible(false);
-    setRecordToDelete(null);
-    
-    if (res.success) Toast.show({ type: 'success', text1: 'Record deleted' });
-    else Toast.show({ type: 'error', text1: 'Deletion failed' });
+    setLoading(false); setConfirmVisible(false); setRecordToDelete(null);
+    Toast.show({ type: res.success ? 'success' : 'error', text1: res.success ? 'Record deleted' : 'Delete failed' });
   };
 
-  const handleAdd = async () => {
-    if (!title || !amount) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please input all data' });
-      return;
+  const handleSave = async () => {
+    if (!title.trim() || !amount.trim()) {
+      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Title and amount are required.' }); return;
+    }
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      Toast.show({ type: 'error', text1: 'Invalid amount', text2: 'Enter a valid positive number.' }); return;
     }
     setLoading(true);
-    let res;
-    if (editingRecord) {
-      res = await editBudget(editingRecord.id, { ...editingRecord, title, amount: parseFloat(amount), type });
-    } else {
-      res = await addBudget({ title, amount: parseFloat(amount), type, date: new Date().toISOString().split('T')[0] });
-    }
+    const payload = { title, amount: numAmount, type, date: new Date().toISOString().split('T')[0] };
+    const res = editingRecord ? await editBudget(editingRecord.id, { ...editingRecord, ...payload }) : await addBudget(payload);
     setLoading(false);
-    
     if (res.success) {
       setModalVisible(false);
-      setTitle(''); setAmount(''); setEditingRecord(null);
-      Toast.show({ type: 'success', text1: editingRecord ? 'Transaction Updated' : 'Transaction Logged' });
+      Toast.show({ type: 'success', text1: editingRecord ? 'Transaction updated ✓' : 'Transaction logged ✓' });
     } else {
-      Toast.show({ type: 'error', text1: editingRecord ? 'Update failed' : 'Creation failed' });
+      Toast.show({ type: 'error', text1: res.message || 'Operation failed' });
     }
   };
 
   const renderItem = ({ item }) => {
     const isIncome = item.type === 'income';
     return (
-      <View style={[styles.transactionRow, { backgroundColor: theme.colors.background, padding: theme.spacing.m, borderRadius: theme.borderRadius.m, marginBottom: theme.spacing.m, flexDirection: 'column', alignItems: 'stretch' }]}>
-        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-          <View style={[styles.iconBox, { backgroundColor: isIncome ? theme.colors.secondaryLight : theme.colors.errorLight }]}>
-             <MaterialCommunityIcons name={isIncome ? 'arrow-up' : 'arrow-down'} size={20} color={isIncome ? theme.colors.secondary : theme.colors.error} />
+      <PremiumCard style={styles.txCard}>
+        <View style={styles.txRow}>
+          <View style={[styles.txIcon, { backgroundColor: isIncome ? COLORS.successGlow : COLORS.errorGlow }]}>
+            <MaterialCommunityIcons
+              name={isIncome ? 'arrow-up-circle' : 'arrow-down-circle'}
+              size={22}
+              color={isIncome ? COLORS.success : COLORS.error}
+            />
           </View>
-          <View style={{flex: 1}}>
-            <Text style={[{ fontSize: 16, fontWeight: '600' }, { color: theme.colors.text }]}>{item.title}</Text>
-            <Text style={[{ fontSize: 12, color: theme.colors.textSecondary }]}>{item.date}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.txTitle}>{item.title}</Text>
+            <Text style={styles.txDate}>{item.date}</Text>
           </View>
-          <Text style={[styles.amount, { color: isIncome ? theme.colors.secondary : theme.colors.error }]}>
+          <Text style={[styles.txAmount, { color: isIncome ? COLORS.success : COLORS.error }]}>
             {isIncome ? '+' : '-'}{formatCurrency(item.amount)}
           </Text>
         </View>
-        <View style={{flexDirection: 'row', justifyContent: 'flex-end', gap: theme.spacing.s, marginTop: theme.spacing.s}}>
-           <Button title="Edit" variant="outline" size="small" onPress={() => openEditModal(item)} style={{paddingVertical: 4, paddingHorizontal: 8}} />
-           <Button title="Delete" variant="danger" size="small" onPress={() => handleDelete(item.id)} style={{paddingVertical: 4, paddingHorizontal: 8}} />
+        <View style={styles.txActions}>
+          <TouchableOpacity style={styles.txBtn} onPress={() => openEdit(item)}>
+            <MaterialCommunityIcons name="pencil-outline" size={14} color={COLORS.gold} />
+            <Text style={[styles.txBtnText, { color: COLORS.gold }]}>Edit</Text>
+          </TouchableOpacity>
+          <View style={styles.txSep} />
+          <TouchableOpacity style={styles.txBtn} onPress={() => askDelete(item.id)}>
+            <MaterialCommunityIcons name="trash-can-outline" size={14} color={COLORS.error} />
+            <Text style={[styles.txBtnText, { color: COLORS.error }]}>Delete</Text>
+          </TouchableOpacity>
         </View>
-      </View>
+      </PremiumCard>
     );
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Card style={[styles.summaryCard, { backgroundColor: theme.colors.text, padding: theme.spacing.xl, borderRadius: theme.borderRadius.l }]}>
-        <Text style={[{ fontSize: 12, fontWeight: '700', letterSpacing: 1 }, { color: theme.colors.border, opacity: 0.8 }]}>Current Balance</Text>
-        <Text style={[{ fontSize: 32, fontWeight: '800' }, { color: theme.colors.surface, marginVertical: theme.spacing.s }]}>
-           {formatCurrency(totalIncome - totalExpense)}
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+
+      {/* Summary hero */}
+      <LinearGradient colors={['#1A1A26', '#0A0A0F']} style={styles.summaryHero}>
+        <View style={styles.heroOrb} />
+        <Text style={styles.summaryLabel}>NET BALANCE</Text>
+        <Text style={[styles.summaryBalance, { color: balance >= 0 ? COLORS.gold : COLORS.error }]}>
+          {formatCurrency(balance)}
         </Text>
-        <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: theme.spacing.m}}>
-           <View><Text style={[{ color: theme.colors.border, fontSize: 12, fontWeight: '700', letterSpacing: 1 }]}>INCOME</Text><Text style={[{ color: theme.colors.surface, fontSize: 18, fontWeight: '800', marginTop: 4 }]}>{formatCurrency(totalIncome)}</Text></View>
-           <View><Text style={[{ textAlign: 'right', color: theme.colors.border, fontSize: 12, fontWeight: '700', letterSpacing: 1 }]}>EXPENSE</Text><Text style={[{ textAlign: 'right', color: theme.colors.surface, fontSize: 18, fontWeight: '800', marginTop: 4 }]}>{formatCurrency(totalExpense)}</Text></View>
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryItem}>
+            <MaterialCommunityIcons name="arrow-up-circle" size={16} color={COLORS.success} />
+            <Text style={styles.summaryItemLabel}>Income</Text>
+            <Text style={[styles.summaryItemValue, { color: COLORS.success }]}>{formatCurrency(totalIncome)}</Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <MaterialCommunityIcons name="arrow-down-circle" size={16} color={COLORS.error} />
+            <Text style={styles.summaryItemLabel}>Expense</Text>
+            <Text style={[styles.summaryItemValue, { color: COLORS.error }]}>{formatCurrency(totalExpense)}</Text>
+          </View>
         </View>
-      </Card>
+      </LinearGradient>
 
-      <View style={[styles.timelineBox, { backgroundColor: theme.colors.surface, borderTopLeftRadius: theme.borderRadius.xl, borderTopRightRadius: theme.borderRadius.xl, paddingTop: theme.spacing.l }]}>
-        <Text style={[{ fontSize: 18, fontWeight: '600', marginBottom: theme.spacing.m, marginLeft: theme.spacing.m }, { color: theme.colors.text }]}>Recent Transactions</Text>
-        <FlatList 
-          data={budgets.slice().reverse()} 
-          keyExtractor={c => c.id} 
-          renderItem={renderItem} 
-          contentContainerStyle={{ paddingHorizontal: theme.spacing.m, paddingBottom: 100 }}
+      {/* Transaction list */}
+      <View style={styles.listHeader}>
+        <Text style={styles.listTitle}>Transactions</Text>
+        <TouchableOpacity style={styles.addBtn} onPress={openCreate}>
+          <LinearGradient colors={GRADIENTS.gold} style={styles.addBtnGrad}>
+            <MaterialCommunityIcons name="plus" size={20} color="#000" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={[...budgets].reverse()}
+        keyExtractor={b => b.id}
+        renderItem={renderItem}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="cash-remove" size={56} color={COLORS.textMuted} />
+            <Text style={styles.emptyText}>No transactions yet</Text>
+          </View>
+        }
+      />
+
+      <PremiumModal
+        visible={modalVisible}
+        title={editingRecord ? 'Edit Transaction' : 'New Transaction'}
+        icon="cash-multiple"
+        onClose={() => { setModalVisible(false); setEditingRecord(null); }}
+        footer={
+          <>
+            <GradientButton title="Cancel" variant="ghost" onPress={() => { setModalVisible(false); setEditingRecord(null); }} style={{ flex: 1 }} fullWidth={false} />
+            <GradientButton title={editingRecord ? 'Save' : 'Log It'} variant="gold" onPress={handleSave} loading={loading} style={{ flex: 1 }} fullWidth={false} />
+          </>
+        }
+      >
+        {/* Type toggle */}
+        <View style={styles.typeToggle}>
+          <TouchableOpacity
+            style={[styles.typeBtn, type === 'expense' && styles.typeBtnDanger]}
+            onPress={() => setType('expense')}
+          >
+            {type === 'expense' && <LinearGradient colors={GRADIENTS.crimson} style={StyleSheet.absoluteFill} borderRadius={RADIUS.m} />}
+            <MaterialCommunityIcons name="arrow-down-circle" size={16} color={type === 'expense' ? '#fff' : COLORS.textMuted} />
+            <Text style={[styles.typeBtnText, type === 'expense' && { color: '#fff' }]}>Expense</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.typeBtn, type === 'income' && styles.typeBtnSuccess]}
+            onPress={() => setType('income')}
+          >
+            {type === 'income' && <LinearGradient colors={['#22C55E', '#15803D']} style={StyleSheet.absoluteFill} borderRadius={RADIUS.m} />}
+            <MaterialCommunityIcons name="arrow-up-circle" size={16} color={type === 'income' ? '#fff' : COLORS.textMuted} />
+            <Text style={[styles.typeBtnText, type === 'income' && { color: '#fff' }]}>Income</Text>
+          </TouchableOpacity>
+        </View>
+
+        <PremiumInput label="Title" placeholder="e.g. Event Supplies" value={title} onChangeText={setTitle} leftIcon="text-box-outline" autoCapitalize="words" />
+        <PremiumInput
+          label="Amount (₹)"
+          placeholder="0.00"
+          value={amount}
+          onChangeText={t => setAmount(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+          keyboardType="decimal-pad"
+          leftIcon="currency-inr"
         />
-      </View>
-      
-      <View style={[styles.fabContainer, { bottom: theme.spacing.m, right: theme.spacing.m, zIndex: 10 }]}>
-         <Button title="Add Record" onPress={openCreateModal} icon="plus" style={{ borderRadius: 100 }} />
-      </View>
+      </PremiumModal>
 
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={[styles.modalBg, { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 }]}>
-          <ScrollView contentContainerStyle={[styles.modalContent, { backgroundColor: theme.colors.surface, padding: theme.spacing.l, paddingTop: theme.spacing.xl }]} showsVerticalScrollIndicator={false}>
-             <Text style={[{ fontSize: 24, fontWeight: '700', marginBottom: theme.spacing.l }, { color: theme.colors.text }]}>{editingRecord ? 'Edit Transaction' : 'New Transaction'}</Text>
-             
-             <View style={[styles.selectorRow, { flexDirection: 'row', gap: theme.spacing.s, marginBottom: theme.spacing.xl }]}>
-               <Button title="Expense" variant={type === 'expense' ? 'danger' : 'ghost'} onPress={() => setType('expense')} style={{flex:1}} />
-               <Button title="Income" variant={type === 'income' ? 'secondary' : 'ghost'} onPress={() => setType('income')} style={{flex:1}} />
-             </View>
-
-             <TextInput 
-               style={[styles.input, { backgroundColor: theme.colors.background, padding: theme.spacing.m, borderRadius: theme.borderRadius.m, fontSize: 16, color: theme.colors.text, marginBottom: theme.spacing.m }]} 
-               placeholder="Title (e.g. Pizza Party)" 
-               placeholderTextColor={theme.colors.textSecondary}
-               value={title} 
-               onChangeText={setTitle} 
-             />
-             <TextInput 
-               style={[styles.input, { backgroundColor: theme.colors.background, padding: theme.spacing.m, borderRadius: theme.borderRadius.m, fontSize: 16, color: theme.colors.text, marginBottom: theme.spacing.m }]} 
-               placeholder="Amount (₹)" 
-               placeholderTextColor={theme.colors.textSecondary}
-                value={amount} 
-                onChangeText={(text) => {
-                  // Allow only numbers and decimal point
-                  const cleaned = text.replace(/[^0-9.]/g, '');
-                  // Ensure only one decimal point
-                  const parts = cleaned.split('.');
-                  if (parts.length > 2) return;
-                  setAmount(cleaned);
-                }} 
-               keyboardType="numeric" 
-             />
-
-             <View style={[styles.modalActions, { flexDirection: 'row', gap: theme.spacing.m, marginTop: theme.spacing.s }]}>
-               <Button title="Cancel" variant="ghost" style={{flex: 1}} onPress={() => { setModalVisible(false); setEditingRecord(null); }} />
-               <Button title={editingRecord ? 'Save Changes' : 'Log Transaction'} style={{flex: 1}} onPress={handleAdd} loading={loading} />
-             </View>
-          </ScrollView>
-        </View>
-      </Modal>
-
-      <ConfirmModal 
+      <ConfirmModal
         visible={confirmVisible}
-        title="Delete Confirmation"
-        message="Are you sure you want to delete this transaction?"
-        onCancel={() => { setConfirmVisible(false); setRecordToDelete(null); }}
+        title="Delete Transaction?"
+        message="This record will be permanently removed from the budget."
+        confirmLabel="Delete"
         onConfirm={confirmDelete}
-        theme={theme}
+        onCancel={() => { setConfirmVisible(false); setRecordToDelete(null); }}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  summaryCard: { margin: 16 },
-  timelineBox: { flex: 1 },
-  transactionRow: { flexDirection: 'row', alignItems: 'center' },
-  iconBox: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  amount: { fontSize: 16, fontWeight: '800' },
-  fabContainer: { position: 'absolute' },
-  modalBg: { flex: 1, justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-  selectorRow: {},
-  input: {},
-  modalActions: {}
+  root: { flex: 1, backgroundColor: COLORS.bg },
+  summaryHero: {
+    paddingHorizontal: SPACING.xl, paddingTop: SPACING.xxl + 12,
+    paddingBottom: SPACING.xl, overflow: 'hidden',
+  },
+  heroOrb: {
+    position: 'absolute', width: 240, height: 240, borderRadius: 120,
+    backgroundColor: 'rgba(201,168,76,0.06)', right: -60, top: -40,
+  },
+  summaryLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: COLORS.textMuted, marginBottom: 6 },
+  summaryBalance: { fontSize: 44, fontWeight: '800', letterSpacing: -2, marginBottom: SPACING.l },
+  summaryRow: { flexDirection: 'row', alignItems: 'center' },
+  summaryItem: { flex: 1, alignItems: 'center', gap: 4 },
+  summaryItemLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
+  summaryItemValue: { fontSize: 20, fontWeight: '700', letterSpacing: -0.5 },
+  summaryDivider: { width: 1, height: 40, backgroundColor: COLORS.border },
+  listHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: SPACING.l, paddingVertical: SPACING.m,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  listTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
+  addBtn: { borderRadius: RADIUS.pill, overflow: 'hidden', ...SHADOWS.gold },
+  addBtnGrad: { width: 40, height: 40, borderRadius: RADIUS.pill, justifyContent: 'center', alignItems: 'center' },
+  list: { padding: SPACING.l, paddingBottom: 120 },
+  txCard: { marginBottom: SPACING.s },
+  txRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m, marginBottom: SPACING.m },
+  txIcon: { width: 44, height: 44, borderRadius: RADIUS.m, justifyContent: 'center', alignItems: 'center' },
+  txTitle: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
+  txDate: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  txAmount: { fontSize: 17, fontWeight: '800', letterSpacing: -0.5 },
+  txActions: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: SPACING.m },
+  txBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  txBtnText: { fontSize: 12, fontWeight: '600' },
+  txSep: { width: 1, height: 16, backgroundColor: COLORS.border },
+  empty: { alignItems: 'center', paddingTop: 60, gap: SPACING.m },
+  emptyText: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
+  typeToggle: { flexDirection: 'row', gap: SPACING.m, marginBottom: SPACING.l },
+  typeBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 12, borderRadius: RADIUS.m,
+    backgroundColor: COLORS.bgElevated, borderWidth: 1, borderColor: COLORS.border,
+    overflow: 'hidden',
+  },
+  typeBtnDanger: { borderColor: COLORS.crimson },
+  typeBtnSuccess: { borderColor: COLORS.success },
+  typeBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecond },
 });

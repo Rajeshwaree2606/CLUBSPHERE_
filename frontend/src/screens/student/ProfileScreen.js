@@ -1,117 +1,179 @@
-import React, { useContext, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import React, { useContext } from 'react';
+import { View, Text, ScrollView, StyleSheet, StatusBar } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import { DataContext } from '../../context/DataContext';
-import { ThemeContext } from '../../context/ThemeContext';
-import Card from '../../components/Card';
-import Button from '../../components/Button';
-import Badge from '../../components/Badge';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { COLORS, GRADIENTS, RADIUS, SPACING, SHADOWS } from '../../utils/theme';
+import PremiumCard from '../../components/PremiumCard';
+import GradientButton from '../../components/GradientButton';
+import XPBar from '../../components/XPBar';
 
-export default function ProfileScreen() {
-  const { user, logout } = useContext(AuthContext);
-  const { certificates } = useContext(DataContext);
-  const { theme } = useContext(ThemeContext);
+const ACHIEVEMENTS = [
+  { emoji: '🌱', label: 'First Step',    minXP: 0 },
+  { emoji: '🔥', label: 'Active Member', minXP: 100 },
+  { emoji: '⭐', label: 'Contributor',   minXP: 300 },
+  { emoji: '💎', label: 'Elite',         minXP: 700 },
+];
 
-  const styles = useMemo(() => getStyles(theme), [theme]);
-
-  const handleDisplayCert = (title) => {
-    Alert.alert("Viewing Certificate", `Mock viewing UI for ${title}. PDF functionality would render here.`);
-  };
+export default function StudentProfileScreen() {
+  const { user, logout }   = useContext(AuthContext);
+  const { certificates }   = useContext(DataContext);
+  const xp = user?.xp || 0;
+  const earned = ACHIEVEMENTS.filter(a => xp >= a.minXP);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: theme.spacing.m, paddingBottom: 100, gap: theme.spacing.l }}>
-      
-      {/* Profile Card */}
-      <Card style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{user?.name?.[0] || 'S'}</Text>
-        </View>
-        <Text style={styles.nameText}>{user?.name}</Text>
-        <Text style={styles.emailText}>{user?.email || 'student@test.com'}</Text>
-        <View style={{ marginTop: theme.spacing.s }}>
-          <Badge label={`Level ${user?.level || 1} ${user?.role}`} status="warning" />
-        </View>
-      </Card>
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
-      {/* Gamification Badges */}
-      <View>
-        <Text style={styles.sectionTitle}>My Achievements</Text>
-        <View style={styles.badgeGrid}>
-           <Card style={styles.badgeItem}>
-              <Text style={{ fontSize: 32 }}>🌱</Text>
-              <Text style={styles.badgeText}>First Step</Text>
-           </Card>
-           {(user?.xp || 0) > 100 && (
-             <Card style={[styles.badgeItem, { borderColor: theme.colors.accent, borderWidth: 1 }]}>
-                <Text style={{ fontSize: 32 }}>🔥</Text>
-                <Text style={styles.badgeText}>Active Member</Text>
-             </Card>
-           )}
-           {(user?.xp || 0) > 300 && (
-             <Card style={styles.badgeItem}>
-                <Text style={{ fontSize: 32 }}>⭐</Text>
-                <Text style={styles.badgeText}>Contributor</Text>
-             </Card>
-           )}
-        </View>
-      </View>
-
-      {/* Certificates Section */}
-      <View>
-        <Text style={styles.sectionTitle}>My Certificates</Text>
-        {certificates.length > 0 ? certificates.map((cert) => (
-          <Card key={cert.id} style={styles.certCard}>
-            <View style={styles.certIconBox}>
-              <MaterialCommunityIcons name="certificate" size={24} color={theme.colors.secondary} />
+        {/* Hero */}
+        <LinearGradient colors={['#1A1A26', '#0A0A0F']} style={styles.hero}>
+          <View style={styles.heroOrb} />
+          <LinearGradient colors={GRADIENTS.gold} style={styles.avatarRing}>
+            <View style={styles.avatarInner}>
+              <Text style={styles.avatarText}>{user?.name?.[0]?.toUpperCase() || 'S'}</Text>
             </View>
-            <View style={{flex: 1}}>
-              <Text style={theme.typography.h3} numberOfLines={1}>{cert.eventTitle}</Text>
-              <Text style={theme.typography.caption}>Issued: {cert.date}</Text>
-            </View>
-            <Button title="View" variant="outline" size="small" onPress={() => handleDisplayCert(cert.eventTitle)} />
-          </Card>
-        )) : (
-           <Text style={[theme.typography.caption, { color: theme.colors.textSecondary, fontStyle: 'italic' }]}>No certificates earned yet.</Text>
-        )}
-      </View>
+          </LinearGradient>
+          <Text style={styles.heroName}>{user?.name || 'Student'}</Text>
+          <View style={styles.levelBadge}>
+            <MaterialCommunityIcons name="star-circle" size={13} color={COLORS.gold} />
+            <Text style={styles.levelText}>Level {user?.level || 1} · {user?.xp || 0} XP</Text>
+          </View>
+          <View style={styles.xpSection}>
+            <XPBar current={xp} max={1000} />
+          </View>
+        </LinearGradient>
 
-      <View style={styles.logoutContainer}>
-         <Button title="Log Out" variant="danger" onPress={logout} icon="logout" />
-         <Button 
-            title="Reset App (Dev Only)" 
-            variant="ghost" 
-            onPress={() => {
-              Alert.alert(
-                "Reset App",
-                "This will clear all local storage and log you out. Continue?",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Reset", style: "destructive", onPress: logout }
-                ]
+        <View style={styles.body}>
+          {/* Account info */}
+          <PremiumCard style={{ marginBottom: SPACING.l }}>
+            <Text style={styles.sectionLabel}>ACCOUNT INFO</Text>
+            {[
+              { icon: 'email-outline',    label: 'Email',  value: user?.email || '—' },
+              { icon: 'account-outline',  label: 'Role',   value: user?.backendRole || 'Member' },
+              { icon: 'identifier',       label: 'User ID',value: String(user?.id || '—') },
+            ].map((row, i, arr) => (
+              <View key={row.label}>
+                <View style={styles.infoRow}>
+                  <View style={styles.infoIcon}>
+                    <MaterialCommunityIcons name={row.icon} size={16} color={COLORS.gold} />
+                  </View>
+                  <View>
+                    <Text style={styles.infoLabel}>{row.label}</Text>
+                    <Text style={styles.infoValue}>{row.value}</Text>
+                  </View>
+                </View>
+                {i < arr.length - 1 && <View style={styles.rowDivider} />}
+              </View>
+            ))}
+          </PremiumCard>
+
+          {/* Achievements */}
+          <Text style={styles.sectionTitle}>Achievements</Text>
+          <View style={styles.achieveGrid}>
+            {ACHIEVEMENTS.map(a => {
+              const unlocked = xp >= a.minXP;
+              return (
+                <View key={a.label} style={[styles.achieveCard, unlocked && styles.achieveCardUnlocked]}>
+                  {unlocked && <LinearGradient colors={GRADIENTS.goldSheen} style={StyleSheet.absoluteFill} borderRadius={RADIUS.l} />}
+                  <Text style={[styles.achieveEmoji, !unlocked && { opacity: 0.3 }]}>{a.emoji}</Text>
+                  <Text style={[styles.achieveLabel, !unlocked && { color: COLORS.textMuted }]}>{a.label}</Text>
+                  {!unlocked && (
+                    <Text style={styles.achieveLock}>{a.minXP} XP</Text>
+                  )}
+                </View>
               );
-            }} 
-            icon="delete-sweep" 
-            style={{ marginTop: theme.spacing.m }}
-         />
-      </View>
+            })}
+          </View>
 
-    </ScrollView>
+          {/* Certificates */}
+          {certificates.length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, { marginTop: SPACING.xl }]}>Certificates</Text>
+              {certificates.map(cert => (
+                <PremiumCard key={cert.id} style={{ marginBottom: SPACING.s }}>
+                  <View style={styles.certRow}>
+                    <View style={styles.certIcon}>
+                      <MaterialCommunityIcons name="certificate-outline" size={22} color={COLORS.gold} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.certTitle} numberOfLines={1}>{cert.eventTitle}</Text>
+                      <Text style={styles.certDate}>Issued: {cert.date}</Text>
+                    </View>
+                  </View>
+                </PremiumCard>
+              ))}
+            </>
+          )}
+
+          {/* Logout */}
+          <View style={{ marginTop: SPACING.xl }}>
+            <GradientButton title="Sign Out" variant="danger" icon="logout" onPress={logout} />
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
-const getStyles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
-  profileCard: { alignItems: 'center', paddingVertical: theme.spacing.xl, marginTop: theme.spacing.s },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.primary, justifyContent: 'center', alignItems: 'center', marginBottom: theme.spacing.m, ...theme.shadows.medium },
-  avatarText: { fontSize: 36, fontWeight: '800', color: theme.colors.surface, marginTop: -4 },
-  nameText: { ...theme.typography.h2, marginBottom: theme.spacing.xs },
-  emailText: { ...theme.typography.body, color: theme.colors.textSecondary },
-  sectionTitle: { ...theme.typography.h3, marginBottom: theme.spacing.m },
-  badgeGrid: { flexDirection: 'row', gap: theme.spacing.s },
-  badgeItem: { flex: 1, alignItems: 'center', padding: theme.spacing.m, marginBottom: 0 },
-  badgeText: { ...theme.typography.caption, textAlign: 'center', marginTop: theme.spacing.s },
-  certCard: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.m, marginBottom: theme.spacing.m },
-  certIconBox: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.secondaryLight, justifyContent: 'center', alignItems: 'center' },
-  logoutContainer: { marginTop: theme.spacing.xl }
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: COLORS.bg },
+  scroll: { paddingBottom: 120 },
+  hero: {
+    alignItems: 'center', paddingTop: SPACING.xxl + 12,
+    paddingBottom: SPACING.xl, paddingHorizontal: SPACING.xl, overflow: 'hidden',
+  },
+  heroOrb: {
+    position: 'absolute', width: 240, height: 240, borderRadius: 120,
+    backgroundColor: 'rgba(201,168,76,0.06)', right: -60, top: -60,
+  },
+  avatarRing: {
+    width: 88, height: 88, borderRadius: 44, padding: 2.5,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: SPACING.l, ...SHADOWS.gold,
+  },
+  avatarInner: {
+    flex: 1, borderRadius: 42, width: '100%',
+    backgroundColor: COLORS.bgCard, justifyContent: 'center', alignItems: 'center',
+  },
+  avatarText: { fontSize: 36, fontWeight: '800', color: COLORS.gold },
+  heroName: { fontSize: 26, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.8, marginBottom: SPACING.s },
+  levelBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: COLORS.goldGlow, borderWidth: 1, borderColor: COLORS.goldDim,
+    borderRadius: RADIUS.pill, paddingVertical: 5, paddingHorizontal: 12,
+    marginBottom: SPACING.l,
+  },
+  levelText: { fontSize: 12, color: COLORS.gold, fontWeight: '700' },
+  xpSection: { width: '100%' },
+  body: { padding: SPACING.l },
+  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: COLORS.textMuted, marginBottom: SPACING.m },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m, paddingVertical: SPACING.s },
+  infoIcon: {
+    width: 36, height: 36, borderRadius: RADIUS.s,
+    backgroundColor: COLORS.goldGlow, justifyContent: 'center', alignItems: 'center',
+  },
+  infoLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', letterSpacing: 0.5 },
+  infoValue: { fontSize: 15, color: COLORS.textPrimary, fontWeight: '600', marginTop: 1 },
+  rowDivider: { height: 1, backgroundColor: COLORS.border },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.m, letterSpacing: -0.3 },
+  achieveGrid: { flexDirection: 'row', gap: SPACING.s, flexWrap: 'wrap' },
+  achieveCard: {
+    width: '47%', backgroundColor: COLORS.bgCard, borderRadius: RADIUS.l,
+    padding: SPACING.m, alignItems: 'center', gap: 6,
+    borderWidth: 1, borderColor: COLORS.border, ...SHADOWS.card, overflow: 'hidden',
+  },
+  achieveCardUnlocked: { borderColor: COLORS.goldDim },
+  achieveEmoji: { fontSize: 32 },
+  achieveLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary, textAlign: 'center' },
+  achieveLock: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
+  certRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m },
+  certIcon: {
+    width: 44, height: 44, borderRadius: RADIUS.m,
+    backgroundColor: COLORS.goldGlow, borderWidth: 1, borderColor: COLORS.goldDim,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  certTitle: { fontSize: 15, fontWeight: '600', color: COLORS.textPrimary },
+  certDate:  { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 });

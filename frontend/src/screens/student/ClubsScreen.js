@@ -1,188 +1,165 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { DataContext } from '../../context/DataContext';
-import { ThemeContext } from '../../context/ThemeContext';
-import Card from '../../components/Card';
-import Button from '../../components/Button';
-import Toast from 'react-native-toast-message';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
+import { DataContext } from '../../context/DataContext';
+import { COLORS, GRADIENTS, RADIUS, SPACING, SHADOWS } from '../../utils/theme';
+import PremiumCard from '../../components/PremiumCard';
+import GradientButton from '../../components/GradientButton';
+import ConfirmModal from '../../components/ConfirmModal';
 
-export default function ClubsScreen() {
+const CLUB_ICONS = {
+  tech: 'laptop', media: 'camera', sport: 'trophy', art: 'palette',
+  music: 'music-note', entre: 'lightbulb-outline', student: 'account-group', default: 'account-group-outline',
+};
+function getIcon(name = '') {
+  const l = name.toLowerCase();
+  if (l.includes('tech') || l.includes('code')) return CLUB_ICONS.tech;
+  if (l.includes('media') || l.includes('photo')) return CLUB_ICONS.media;
+  if (l.includes('sport') || l.includes('game'))  return CLUB_ICONS.sport;
+  if (l.includes('art'))   return CLUB_ICONS.art;
+  if (l.includes('music')) return CLUB_ICONS.music;
+  if (l.includes('entre')) return CLUB_ICONS.entre;
+  if (l.includes('student') || l.includes('council')) return CLUB_ICONS.student;
+  return CLUB_ICONS.default;
+}
+
+export default function StudentClubsScreen() {
   const { clubs, joinClub, leaveClub } = useContext(DataContext);
-  const { theme } = useContext(ThemeContext);
-  const [loadingId, setLoadingId] = useState(null);
+  const [loadingId,    setLoadingId]    = useState(null);
+  const [leaveTarget,  setLeaveTarget]  = useState(null);
 
-  const handleJoin = async (id) => {
+  const handleJoin = async id => {
     setLoadingId(id);
     const res = await joinClub(id);
     setLoadingId(null);
-    if (res.success) Toast.show({ type: 'success', text1: 'Joined!', text2: 'Successfully joined the club.' });
+    Toast.show({ type: res.success ? 'success' : 'error', text1: res.success ? 'Joined club! 🎉' : (res.message || 'Failed to join') });
   };
 
-  const handleLeave = (id) => {
-    Alert.alert('Leave Club', 'Are you sure you want to leave this club?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: async () => {
-          setLoadingId(id);
-          const res = await leaveClub(id);
-          setLoadingId(null);
-          if (res.success) Toast.show({ type: 'success', text1: 'Left club' });
-      } }
-    ]);
+  const confirmLeave = async () => {
+    if (!leaveTarget) return;
+    setLoadingId(leaveTarget);
+    const res = await leaveClub(leaveTarget);
+    setLoadingId(null); setLeaveTarget(null);
+    Toast.show({ type: 'success', text1: 'Left club' });
   };
 
-  const getIconForClub = (name, iconProp) => {
-    if (iconProp) return iconProp;
-    const l = name.toLowerCase();
-    if (l.includes('code') || l.includes('tech')) return 'laptop-code';
-    if (l.includes('media') || l.includes('photo')) return 'camera-alt';
-    if (l.includes('robot')) return 'robot';
-    if (l.includes('art')) return 'palette';
-    if (l.includes('sport')) return 'trophy';
-    if (l.includes('entre')) return 'lightbulb';
-    if (l.includes('student')) return 'users';
-    if (l.includes('event')) return 'star';
-    return 'account-group';
-  };
-
-  const renderItem = ({ item }) => (
-    <Card>
-      <View style={[styles.cardContainer, { backgroundColor: theme.colors.surface }]}>
-        {/* Header with icon and title */}
-        <View style={styles.cardHeader}>
-          <View style={[styles.iconBox, { backgroundColor: theme.colors.primaryLight }]}>
-            <MaterialCommunityIcons 
-              name={getIconForClub(item.name, item.icon)} 
-              size={32} 
-              color={theme.colors.primary} 
-            />
-          </View>
-          <View style={styles.headerText}>
-            <Text style={[styles.clubName, { color: theme.colors.text }]}>{item.name}</Text>
-            <View style={styles.memberBadge}>
-              <MaterialCommunityIcons name="account-multiple" size={14} color={theme.colors.primary} />
-              <Text style={[styles.memberCount, { color: theme.colors.textSecondary }]}>
-                {item.memberCount || 0} {item.memberCount === 1 ? 'member' : 'members'}
-              </Text>
+  const renderItem = ({ item }) => {
+    const icon = getIcon(item.name);
+    return (
+      <PremiumCard style={styles.card} variant={item.joined ? 'gold' : 'default'}>
+        <View style={styles.cardTop}>
+          <LinearGradient
+            colors={item.joined ? GRADIENTS.gold : ['#1E1E2E', '#13131A']}
+            style={styles.iconWrap}
+          >
+            <MaterialCommunityIcons name={icon} size={26} color={item.joined ? '#000' : COLORS.textSecond} />
+          </LinearGradient>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.clubName}>{item.name}</Text>
+            <View style={styles.memberRow}>
+              <MaterialCommunityIcons name="account-multiple" size={12} color={COLORS.textMuted} />
+              <Text style={styles.memberText}>{item.memberCount || 0} {item.memberCount === 1 ? 'member' : 'members'}</Text>
             </View>
           </View>
+          {item.joined && (
+            <View style={styles.joinedPill}>
+              <MaterialCommunityIcons name="check-circle" size={13} color={COLORS.success} />
+              <Text style={styles.joinedText}>Joined</Text>
+            </View>
+          )}
         </View>
 
-        {/* Description */}
-        <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
-          {item.description}
-        </Text>
+        {item.description ? (
+          <Text style={styles.desc} numberOfLines={2}>{item.description}</Text>
+        ) : null}
 
-        {/* Action Button */}
-        <View style={styles.buttonContainer}>
+        <View style={{ marginTop: SPACING.m }}>
           {item.joined ? (
-            <View style={{flexDirection: 'row', gap: theme.spacing.s}}>
-              <View style={[styles.joinedBadge, { backgroundColor: theme.colors.secondaryLight, flex: 1 }]}>
-                <MaterialCommunityIcons name="check-circle" size={18} color={theme.colors.secondary} />
-                <Text style={[styles.joinedText, { color: theme.colors.secondary }]}>Joined</Text>
-              </View>
-              <Button 
-                title="Leave" 
-                variant="outline" 
-                onPress={() => handleLeave(item.id)} 
-                loading={loadingId === item.id}
-                style={{ flex: 1 }}
-              />
-            </View>
+            <GradientButton
+              title="Leave Club"
+              variant="outline"
+              size="small"
+              onPress={() => setLeaveTarget(item.id)}
+              loading={loadingId === item.id}
+            />
           ) : (
-            <Button 
-              title="Join Club" 
-              onPress={() => handleJoin(item.id)} 
-              loading={loadingId === item.id} 
+            <GradientButton
+              title="Join Club"
+              variant="gold"
               icon="account-plus"
-              style={{ flex: 1 }}
+              size="small"
+              onPress={() => handleJoin(item.id)}
+              loading={loadingId === item.id}
             />
           )}
         </View>
-      </View>
-    </Card>
-  );
+      </PremiumCard>
+    );
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Discover Clubs</Text>
+        <Text style={styles.headerSub}>{clubs.filter(c => c.joined).length} joined · {clubs.length} total</Text>
+      </View>
+
       <FlatList
         data={clubs}
-        keyExtractor={item => item.id}
+        keyExtractor={c => c.id}
         renderItem={renderItem}
-        contentContainerStyle={{ padding: theme.spacing.m }}
-        ListHeaderComponent={
-          <Text style={[styles.header, { color: theme.colors.text, marginBottom: theme.spacing.m }]}>
-            Discover Clubs
-          </Text>
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="account-group-outline" size={56} color={COLORS.textMuted} />
+            <Text style={styles.emptyText}>No clubs available</Text>
+          </View>
         }
-        scrollIndicatorInsets={{ right: 1 }}
+      />
+
+      <ConfirmModal
+        visible={!!leaveTarget}
+        title="Leave Club?"
+        message="You can rejoin at any time, but you'll lose your member status."
+        confirmLabel="Leave"
+        onConfirm={confirmLeave}
+        onCancel={() => setLeaveTarget(null)}
+        variant="gold"
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1,
-  },
-  cardContainer: {
-    padding: 0,
-  },
-  cardHeader: { 
-    flexDirection: 'row', 
-    alignItems: 'flex-start',
-    paddingBottom: 12,
-  },
-  iconBox: { 
-    width: 60, 
-    height: 60, 
-    borderRadius: 16, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginRight: 16,
-    marginBottom: 8,
-  },
-  headerText: { 
-    flex: 1, 
-    justifyContent: 'center',
-  },
-  clubName: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  memberBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  memberCount: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  buttonContainer: {
-    marginTop: 12,
-  },
-  joinedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 6,
-  },
-  joinedText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  root: { flex: 1, backgroundColor: COLORS.bg },
   header: {
-    fontSize: 24,
-    fontWeight: '700',
+    paddingHorizontal: SPACING.l, paddingTop: SPACING.xxl,
+    paddingBottom: SPACING.l, borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
+  headerTitle: { fontSize: 28, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.8 },
+  headerSub: { fontSize: 13, color: COLORS.textSecond, marginTop: 2 },
+  list: { padding: SPACING.l, paddingBottom: 120 },
+  card: { marginBottom: SPACING.m },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m, marginBottom: SPACING.s },
+  iconWrap: {
+    width: 52, height: 52, borderRadius: RADIUS.m,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  clubName: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, letterSpacing: -0.3 },
+  memberRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  memberText: { fontSize: 12, color: COLORS.textMuted, fontWeight: '500' },
+  joinedPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: COLORS.successGlow, borderRadius: RADIUS.pill,
+    paddingVertical: 4, paddingHorizontal: 8,
+    borderWidth: 1, borderColor: `${COLORS.success}44`,
+  },
+  joinedText: { fontSize: 11, color: COLORS.success, fontWeight: '700' },
+  desc: { fontSize: 13, color: COLORS.textSecond, lineHeight: 20 },
+  empty: { alignItems: 'center', paddingTop: 80, gap: SPACING.m },
+  emptyText: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
 });

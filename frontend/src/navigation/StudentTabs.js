@@ -1,62 +1,99 @@
-import React, { useContext } from 'react';
+import React from 'react';
+import { View, StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ThemeContext } from '../context/ThemeContext';
-import HomeScreen from '../screens/student/HomeScreen';
-import ClubsScreen from '../screens/student/ClubsScreen';
-import EventsScreen from '../screens/student/EventsScreen';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, RADIUS, SHADOWS } from '../utils/theme';
+
+import HomeScreen        from '../screens/student/HomeScreen';
+import ClubsScreen       from '../screens/student/ClubsScreen';
+import EventsScreen      from '../screens/student/EventsScreen';
 import LeaderboardScreen from '../screens/student/LeaderboardScreen';
-import ProfileScreen from '../screens/student/ProfileScreen';
+import ProfileScreen     from '../screens/student/ProfileScreen';
 import EventDetailsScreen from '../screens/student/EventDetailsScreen';
 
-const Tab = createBottomTabNavigator();
+const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function EventsStack() {
-  const { theme } = useContext(ThemeContext);
   return (
-    <Stack.Navigator screenOptions={{ 
-      headerShown: false,
-      headerStyle: { backgroundColor: theme.colors.surface },
-      headerTintColor: theme.colors.primary,
-    }}>
-      <Stack.Screen name="EventsList" component={EventsScreen} />
-      <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ presentation: 'modal' }}/>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="EventsList"   component={EventsScreen} />
+      <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }
 
-export default function StudentTabs() {
-  const { theme, toggleTheme, isDarkMode } = useContext(ThemeContext);
+const TABS = [
+  { name: 'Home',    component: HomeScreen,        icon: 'home-variant',            label: 'Home'    },
+  { name: 'Clubs',   component: ClubsScreen,       icon: 'google-circles-extended', label: 'Clubs'   },
+  { name: 'Events',  component: EventsStack,        icon: 'calendar-star',           label: 'Events'  },
+  { name: 'Ranks',   component: LeaderboardScreen,  icon: 'trophy',                  label: 'Ranks'   },
+  { name: 'Profile', component: ProfileScreen,      icon: 'account-circle',          label: 'Me'      },
+];
 
+export default function StudentTabs() {
   return (
-    <Tab.Navigator screenOptions={{
-      tabBarActiveTintColor: theme.colors.primary,
-      tabBarInactiveTintColor: theme.colors.textSecondary,
-      headerStyle: { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border, borderBottomWidth: 1 },
-      headerTintColor: theme.colors.primary,
-      headerTitleStyle: { fontWeight: '800', color: theme.colors.text },
-      tabBarStyle: { borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface },
-      headerRight: () => (
-        <TouchableOpacity 
-          onPress={toggleTheme}
-          style={{ marginRight: 16, padding: 8 }}
-        >
-          <MaterialCommunityIcons 
-            name={isDarkMode ? 'white-balance-sunny' : 'moon-waning-crescent'} 
-            size={24} 
-            color={theme.colors.primary} 
-          />
-        </TouchableOpacity>
-      ),
-    }}>
-      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="home-variant" color={color} size={size} /> }} />
-      <Tab.Screen name="Clubs" component={ClubsScreen} options={{ tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="google-circles-extended" color={color} size={size} /> }} />
-      <Tab.Screen name="Events" component={EventsStack} options={{ tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="calendar-star" color={color} size={size} /> }} />
-      <Tab.Screen name="Ranks" component={LeaderboardScreen} options={{ tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="trophy" color={color} size={size} /> }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="account-circle-outline" color={color} size={size} /> }} />
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarShowLabel: true,
+        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: COLORS.indigo,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarLabelStyle: styles.tabLabel,
+        tabBarItemStyle: styles.tabItem,
+        tabBarBackground: () => (
+          <View style={styles.tabBarBg}>
+            <View style={styles.tabBarBorder} />
+          </View>
+        ),
+        tabBarIcon: ({ color, focused }) => {
+          const tab = TABS.find(t => t.name === route.name);
+          return (
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              {focused && (
+                <LinearGradient
+                  colors={['rgba(79,110,247,0.2)', 'rgba(79,110,247,0.05)']}
+                  style={StyleSheet.absoluteFill}
+                  borderRadius={RADIUS.m}
+                />
+              )}
+              <MaterialCommunityIcons name={tab?.icon || 'circle'} size={22} color={color} />
+            </View>
+          );
+        },
+      })}
+    >
+      {TABS.map(t => (
+        <Tab.Screen key={t.name} name={t.name} component={t.component} options={{ tabBarLabel: t.label }} />
+      ))}
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    position: 'absolute', borderTopWidth: 0,
+    backgroundColor: 'transparent',
+    height: Platform.OS === 'web' ? 64 : 70,
+    paddingBottom: Platform.OS === 'web' ? 6 : 10,
+    elevation: 0,
+  },
+  tabBarBg: {
+    flex: 1, backgroundColor: COLORS.bgCard,
+    borderTopWidth: 1, borderTopColor: COLORS.border, ...SHADOWS.card,
+  },
+  tabBarBorder: {
+    position: 'absolute', top: 0, left: 40, right: 40, height: 1,
+    backgroundColor: COLORS.gold, opacity: 0.25,
+  },
+  tabLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 0.3, marginTop: 2 },
+  tabItem: { paddingTop: 8 },
+  iconWrap: {
+    width: 40, height: 32, borderRadius: RADIUS.m,
+    justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
+  },
+  iconWrapActive: { borderWidth: 1, borderColor: 'rgba(79,110,247,0.4)' },
+});

@@ -1,30 +1,14 @@
-import React, { useContext } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { ThemeContext } from '../context/ThemeContext';
+/**
+ * Card.js — Legacy compatibility shim.
+ * Forwards to the new PremiumCard component.
+ */
+import React from 'react';
+import PremiumCard from './PremiumCard';
 
-export default function Card({ children, style }) {
-  const { theme } = useContext(ThemeContext);
-
+export default function Card({ children, style, variant }) {
   return (
-    <View style={[
-      styles.card,
-      {
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.borderRadius.m,
-        padding: theme.spacing.m,
-        marginBottom: theme.spacing.m,
-        borderColor: theme.colors.border,
-        ...theme.shadows.medium,
-      },
-      style,
-    ]}>
+    <PremiumCard style={style} variant={variant}>
       {children}
-    </View>
+    </PremiumCard>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    borderWidth: 1,
-  },
-});
