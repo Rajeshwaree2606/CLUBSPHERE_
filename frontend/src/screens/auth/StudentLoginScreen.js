@@ -102,7 +102,7 @@ export default function StudentLoginScreen({ navigation }) {
           {/* Demo hint */}
           <View style={styles.hintBox}>
             <MaterialCommunityIcons name="information-outline" size={13} color={COLORS.textMuted} />
-            <Text style={styles.hintText}>Demo: student@test.com / student123</Text>
+            <Text style={styles.hintText}>Demo: student@campus.edu / student123</Text>
           </View>
 
           <View style={{ marginTop: SPACING.m }}>

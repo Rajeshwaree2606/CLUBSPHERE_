@@ -4,8 +4,8 @@ import { AuthContext } from '../../context/AuthContext';
 import { ThemeContext } from '../../context/ThemeContext';
 
 export default function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState('student@test.com');
-  const [password, setPassword] = useState('student123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const { login } = useContext(AuthContext);
   const { theme } = useContext(ThemeContext);
   const [isLoading, setIsLoading] = useState(false);
