@@ -15,7 +15,7 @@ import GradientButton from '../../components/GradientButton';
 import ConfirmModal from '../../components/ConfirmModal';
 
 export default function AdminClubsScreen() {
-  const { clubs, createClub, editClub, deleteClub } = useContext(DataContext);
+  const { clubs, createClub, editClub, deleteClub, joinClub, leaveClub } = useContext(DataContext);
   const [modalVisible,   setModalVisible]   = useState(false);
   const [editingClub,    setEditingClub]    = useState(null);
   const [name,           setName]           = useState('');
@@ -23,10 +23,27 @@ export default function AdminClubsScreen() {
   const [loading,        setLoading]        = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [clubToDelete,   setClubToDelete]   = useState(null);
+  const [loadingId,      setLoadingId]      = useState(null);
+  const [leaveTarget,    setLeaveTarget]    = useState(null);
 
   const openCreate = () => { setEditingClub(null); setName(''); setDesc(''); setModalVisible(true); };
   const openEdit   = c  => { setEditingClub(c); setName(c.name); setDesc(c.description || ''); setModalVisible(true); };
   const askDelete  = id => { setClubToDelete(id); setConfirmVisible(true); };
+
+  const handleJoin = async id => {
+    setLoadingId(id);
+    const res = await joinClub(id);
+    setLoadingId(null);
+    Toast.show({ type: res.success ? 'success' : 'error', text1: res.success ? 'Joined club! 🎉' : (res.message || 'Failed to join') });
+  };
+
+  const confirmLeave = async () => {
+    if (!leaveTarget) return;
+    setLoadingId(leaveTarget);
+    const res = await leaveClub(leaveTarget);
+    setLoadingId(null); setLeaveTarget(null);
+    Toast.show({ type: 'success', text1: 'Left club' });
+  };
 
   const confirmDelete = async () => {
     setLoading(true);
@@ -65,6 +82,12 @@ export default function AdminClubsScreen() {
             <Text style={styles.memberText}>{item.memberCount || 0} {item.memberCount === 1 ? 'Member' : 'Members'}</Text>
           </View>
         </View>
+        {item.joined && (
+          <View style={styles.joinedPill}>
+            <MaterialCommunityIcons name="check-circle" size={13} color={COLORS.success} />
+            <Text style={styles.joinedText}>Joined</Text>
+          </View>
+        )}
       </View>
 
       {item.description ? (
@@ -73,6 +96,18 @@ export default function AdminClubsScreen() {
 
       <View style={styles.cardDivider} />
       <View style={styles.actions}>
+        {item.joined ? (
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setLeaveTarget(item.id)}>
+            <MaterialCommunityIcons name="account-minus" size={16} color={COLORS.textSecond} />
+            <Text style={[styles.actionText, { color: COLORS.textSecond }]}>Leave</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.actionBtn} onPress={() => handleJoin(item.id)}>
+            <MaterialCommunityIcons name="account-plus" size={16} color={COLORS.success} />
+            <Text style={[styles.actionText, { color: COLORS.success }]}>Join</Text>
+          </TouchableOpacity>
+        )}
+        <View style={styles.actionSep} />
         <TouchableOpacity style={styles.actionBtn} onPress={() => openEdit(item)}>
           <MaterialCommunityIcons name="pencil-outline" size={16} color={COLORS.gold} />
           <Text style={[styles.actionText, { color: COLORS.gold }]}>Edit</Text>
@@ -144,6 +179,16 @@ export default function AdminClubsScreen() {
         onConfirm={confirmDelete}
         onCancel={() => { setConfirmVisible(false); setClubToDelete(null); }}
       />
+
+      <ConfirmModal
+        visible={!!leaveTarget}
+        title="Leave Club?"
+        message="You can rejoin at any time, but you'll lose your member status."
+        confirmLabel="Leave"
+        onConfirm={confirmLeave}
+        onCancel={() => setLeaveTarget(null)}
+        variant="gold"
+      />
     </View>
   );
 }
@@ -179,4 +224,11 @@ const styles = StyleSheet.create({
   empty:       { alignItems: 'center', paddingTop: 80, gap: SPACING.m },
   emptyText:   { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary },
   emptySub:    { fontSize: 14, color: COLORS.textSecond },
+  joinedPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: COLORS.successGlow, borderRadius: RADIUS.pill,
+    paddingVertical: 4, paddingHorizontal: 8,
+    borderWidth: 1, borderColor: `${COLORS.success}44`,
+  },
+  joinedText: { fontSize: 11, color: COLORS.success, fontWeight: '700' },
 });

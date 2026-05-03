@@ -64,6 +64,7 @@ const connectDB = async () => {
         description TEXT,
         venue VARCHAR(255),
         event_date DATE NOT NULL,
+        created_by INTEGER REFERENCES users(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -74,8 +75,22 @@ const connectDB = async () => {
         club_id INTEGER REFERENCES clubs(id) ON DELETE CASCADE,
         title VARCHAR(255) NOT NULL,
         message TEXT NOT NULL,
+        created_by INTEGER REFERENCES users(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+    // Ensure created_by exists for events and announcements (Migration)
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='created_by') THEN
+          ALTER TABLE events ADD COLUMN created_by INTEGER REFERENCES users(id);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='announcements' AND column_name='created_by') THEN
+          ALTER TABLE announcements ADD COLUMN created_by INTEGER REFERENCES users(id);
+        END IF;
+      END $$;
     `);
 
     await client.query(`
@@ -121,6 +136,29 @@ const connectDB = async () => {
         UNIQUE(event_id, user_id)
       );
     `);
+
+    // --- Seed Default Users (to match frontend UI hints) ---
+    const bcrypt = require("bcryptjs");
+    
+    const adminCheck = await client.query("SELECT id FROM users WHERE email = 'admin@campus.edu'");
+    if (adminCheck.rows.length === 0) {
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash("admin123", salt);
+      await client.query(
+        "INSERT INTO users (name, email, password, role, level, xp) VALUES ($1, $2, $3, $4, $5, $6)",
+        ["Admin User", "admin@campus.edu", hash, "SuperAdmin", 5, 500]
+      );
+    }
+
+    const studentCheck = await client.query("SELECT id FROM users WHERE email = 'student@campus.edu'");
+    if (studentCheck.rows.length === 0) {
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash("student123", salt);
+      await client.query(
+        "INSERT INTO users (name, email, password, role, level, xp) VALUES ($1, $2, $3, $4, $5, $6)",
+        ["Student User", "student@campus.edu", hash, "Member", 2, 120]
+      );
+    }
 
     console.log("✅ PostgreSQL connected & schema verified");
   } finally {

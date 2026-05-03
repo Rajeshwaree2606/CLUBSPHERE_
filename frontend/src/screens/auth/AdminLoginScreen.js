@@ -102,7 +102,7 @@ export default function AdminLoginScreen({ navigation }) {
           {/* Demo hint */}
           <View style={styles.hintBox}>
             <MaterialCommunityIcons name="information-outline" size={13} color={COLORS.textMuted} />
-            <Text style={styles.hintText}>Demo: admin@test.com / admin123</Text>
+            <Text style={styles.hintText}>Demo: admin@campus.edu / admin123</Text>
           </View>
 
           <View style={{ marginTop: SPACING.m }}>
