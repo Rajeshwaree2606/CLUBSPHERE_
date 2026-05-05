@@ -264,4 +264,35 @@ const deleteEvent = async (req, res) => {
   }
 };
 
-module.exports = { createEvent, getEvents, getEventById, joinEvent, updateEvent, deleteEvent };
+// ========================
+//  GENERATE QR TOKEN — POST /api/events/:id/qr-token
+//  SuperAdmin & ClubAdmin only
+// ========================
+const generateQRToken = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const crypto = require('crypto');
+
+    // Check event exists
+    const eventCheck = await pool.query('SELECT id, title FROM events WHERE id = $1', [id]);
+    if (eventCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    // Generate a fresh secure token
+    const qr_token = `CS-${id}-${crypto.randomBytes(16).toString('hex')}`;
+
+    await pool.query('UPDATE events SET qr_token = $1 WHERE id = $2', [qr_token, id]);
+
+    return res.status(200).json({
+      success: true,
+      message: 'QR token generated',
+      data: { event_id: id, event_title: eventCheck.rows[0].title, qr_token },
+    });
+  } catch (error) {
+    console.error('❌ Generate QR Token Error:', error.message);
+    return res.status(500).json({ success: false, message: 'Server error generating QR token' });
+  }
+};
+
+module.exports = { createEvent, getEvents, getEventById, joinEvent, updateEvent, deleteEvent, generateQRToken };

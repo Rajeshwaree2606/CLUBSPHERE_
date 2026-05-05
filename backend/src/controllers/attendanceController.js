@@ -196,4 +196,82 @@ const getMyAttendance = async (req, res) => {
   }
 };
 
-module.exports = { markAttendance, getAttendanceByEvent, getMyAttendance };
+// ========================
+//  SCAN QR — POST /api/attendance/scan
+//  Any authenticated user (student)
+// ========================
+const scanQRAttendance = async (req, res) => {
+  try {
+    const { qr_token } = req.body;
+    const user_id = req.user.id;
+
+    if (!qr_token) {
+      return res.status(400).json({ success: false, message: 'QR token is required' });
+    }
+
+    // Find event by qr_token
+    const eventResult = await pool.query(
+      'SELECT id, title, venue, event_date FROM events WHERE qr_token = $1',
+      [qr_token]
+    );
+
+    if (eventResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Invalid or expired QR code' });
+    }
+
+    const event = eventResult.rows[0];
+
+    // Check for duplicate scan
+    const existing = await pool.query(
+      'SELECT id FROM attendance WHERE event_id = $1 AND user_id = $2',
+      [event.id, user_id]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Attendance already marked for this event',
+        data: { event_title: event.title, already_marked: true },
+      });
+    }
+
+    // Auto-register if not already
+    await pool.query(
+      `INSERT INTO event_registrations (event_id, user_id)
+       VALUES ($1, $2)
+       ON CONFLICT (event_id, user_id) DO NOTHING`,
+      [event.id, user_id]
+    );
+
+    // Mark attendance as Present
+    const result = await pool.query(
+      `INSERT INTO attendance (event_id, user_id, status)
+       VALUES ($1, $2, 'Present')
+       RETURNING *`,
+      [event.id, user_id]
+    );
+
+    // Award XP for attending
+    await pool.query(
+      'UPDATE users SET xp = xp + 50 WHERE id = $1',
+      [user_id]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Attendance marked successfully',
+      data: {
+        attendance: result.rows[0],
+        event_title: event.title,
+        event_venue: event.venue,
+        event_date: event.event_date,
+        xp_earned: 50,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Scan QR Attendance Error:', error.message);
+    return res.status(500).json({ success: false, message: 'Server error while scanning QR' });
+  }
+};
+
+module.exports = { markAttendance, getAttendanceByEvent, getMyAttendance, scanQRAttendance };

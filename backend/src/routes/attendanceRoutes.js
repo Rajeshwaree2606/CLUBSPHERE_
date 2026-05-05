@@ -8,8 +8,9 @@ const {
   markAttendance,
   getAttendanceByEvent,
   getMyAttendance,
-} = require("../controllers/attendanceController");
-const { protect, authorize } = require("../middleware/authMiddleware");
+  scanQRAttendance,
+} = require('../controllers/attendanceController');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 // GET  /api/attendance/me               — Get logged-in user's attendance (any authenticated user)
 router.get("/me", protect, getMyAttendance);
@@ -19,5 +20,8 @@ router.get("/event/:eventId", protect, getAttendanceByEvent);
 
 // POST /api/attendance                  — Mark attendance (SuperAdmin & ClubAdmin)
 router.post("/", protect, authorize("SuperAdmin", "ClubAdmin"), markAttendance);
+
+// POST /api/attendance/scan             — Scan QR code to mark own attendance (any student)
+router.post("/scan", protect, scanQRAttendance);
 
 module.exports = router;

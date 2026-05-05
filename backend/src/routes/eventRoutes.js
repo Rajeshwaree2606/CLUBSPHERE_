@@ -11,6 +11,7 @@ const {
   joinEvent,
   updateEvent,
   deleteEvent,
+  generateQRToken,
 } = require("../controllers/eventController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
@@ -31,5 +32,8 @@ router.put("/:id", protect, authorize("SuperAdmin", "ClubAdmin"), updateEvent);
 
 // DELETE /api/events/:id   — Delete event (SuperAdmin & ClubAdmin)
 router.delete("/:id", protect, authorize("SuperAdmin", "ClubAdmin"), deleteEvent);
+
+// POST   /api/events/:id/qr-token — Generate QR token (SuperAdmin & ClubAdmin)
+router.post("/:id/qr-token", protect, authorize("SuperAdmin", "ClubAdmin"), generateQRToken);
 
 module.exports = router;

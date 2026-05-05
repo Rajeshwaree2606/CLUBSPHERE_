@@ -154,6 +154,16 @@ const connectDB = async () => {
       );
     `);
 
+    // Add qr_token to events table for QR attendance scanning (Migration)
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='qr_token') THEN
+          ALTER TABLE events ADD COLUMN qr_token VARCHAR(255) UNIQUE;
+        END IF;
+      END $$;
+    `);
+
     // --- Seed Default Users (to match frontend UI hints) ---
     const bcrypt = require("bcryptjs");
     
