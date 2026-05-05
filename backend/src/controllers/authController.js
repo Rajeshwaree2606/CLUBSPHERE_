@@ -3,8 +3,12 @@
 // --------------------------------------------------
 
 const bcrypt = require("bcryptjs");
+const { OAuth2Client } = require("google-auth-library");
 const { pool } = require("../config/db");
 const generateToken = require("../utils/generateToken");
+
+// We'll read GOOGLE_CLIENT_ID from environment or use a placeholder if not set
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || "PLACEHOLDER_CLIENT_ID");
 
 // Allowed roles
 const VALID_ROLES = ["SuperAdmin", "ClubAdmin", "Member", "Alumni"];
@@ -181,4 +185,71 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe };
+// ========================
+//  GOOGLE AUTH  — POST /api/auth/google
+// ========================
+const googleAuth = async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ success: false, message: "No ID token provided" });
+    }
+
+    // Verify token with Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID || "PLACEHOLDER_CLIENT_ID", // Specify the CLIENT_ID of the app that accesses the backend
+    });
+    const payload = ticket.getPayload();
+    
+    // The payload contains the user's Google info
+    const { sub: google_id, email, name, picture: avatar_url } = payload;
+
+    // Check if user already exists (by google_id or email)
+    let result = await pool.query("SELECT * FROM users WHERE google_id = $1 OR email = $2", [google_id, email]);
+    
+    let user;
+    if (result.rows.length > 0) {
+      user = result.rows[0];
+      // If user exists by email but doesn't have google_id, update them
+      if (!user.google_id) {
+        await pool.query("UPDATE users SET google_id = $1, avatar_url = $2 WHERE id = $3", [google_id, avatar_url, user.id]);
+        user.google_id = google_id;
+        user.avatar_url = avatar_url;
+      }
+    } else {
+      // Create new user
+      const newUser = await pool.query(
+        `INSERT INTO users (name, email, google_id, avatar_url, role)
+         VALUES ($1, $2, $3, $4, 'Member')
+         RETURNING *`,
+        [name, email, google_id, avatar_url]
+      );
+      user = newUser.rows[0];
+    }
+
+    // Generate JWT
+    const token = generateToken(user);
+
+    return res.status(200).json({
+      success: true,
+      message: "Google login successful",
+      data: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar_url: user.avatar_url,
+        token,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Google Auth Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Server error during Google authentication",
+    });
+  }
+};
+
+module.exports = { register, login, getMe, googleAuth };

@@ -25,12 +25,29 @@ const connectDB = async () => {
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
+        password VARCHAR(255),
         role VARCHAR(50) DEFAULT 'Member',
         level INTEGER DEFAULT 1,
         xp INTEGER DEFAULT 0,
+        google_id VARCHAR(255) UNIQUE,
+        avatar_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+    // Add google_id and avatar_url if missing, make password nullable (Migration)
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='google_id') THEN
+          ALTER TABLE users ADD COLUMN google_id VARCHAR(255) UNIQUE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='avatar_url') THEN
+          ALTER TABLE users ADD COLUMN avatar_url TEXT;
+        END IF;
+        -- Make password nullable
+        ALTER TABLE users ALTER COLUMN password DROP NOT NULL;
+      END $$;
     `);
 
     // Ensure xp and level columns exist (Migration)
