@@ -1,19 +1,25 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+/**
+ * QRScannerScreen.js  — STUDENT ONLY
+ *
+ * - Web: shows a clean "Use Mobile App to Scan" message (CameraView not available on web)
+ * - Native: full QR scanner with camera permission, scan → attendance marking → confetti
+ *
+ * This screen is ONLY in StudentTabs — admins never reach this screen.
+ */
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated,
-  Dimensions, StatusBar,
+  Dimensions, StatusBar, Platform,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AuthContext } from '../../context/AuthContext';
 import { apiPost } from '../../services/api';
 import { COLORS, RADIUS, SPACING, SHADOWS } from '../../utils/theme';
 
 const { width } = Dimensions.get('window');
-const SCAN_BOX = width * 0.68;
+const SCAN_BOX  = width * 0.68;
 
-// ─── Confetti Particle
+// ─── Confetti Particle ────────────────────────────────────────────────────────
 function Particle({ delay }) {
   const tx  = useRef(new Animated.Value(0)).current;
   const ty  = useRef(new Animated.Value(0)).current;
@@ -51,7 +57,7 @@ function Particle({ delay }) {
   );
 }
 
-// ─── Success screen
+// ─── Success screen ───────────────────────────────────────────────────────────
 function SuccessView({ data, onReset }) {
   const scale = useRef(new Animated.Value(0)).current;
   const fade  = useRef(new Animated.Value(0)).current;
@@ -120,7 +126,7 @@ function SuccessView({ data, onReset }) {
   );
 }
 
-// ─── Duplicate scan screen
+// ─── Duplicate scan screen ────────────────────────────────────────────────────
 function DuplicateView({ eventTitle, onReset }) {
   return (
     <View style={ss.overlay}>
@@ -139,14 +145,55 @@ function DuplicateView({ eventTitle, onReset }) {
   );
 }
 
-// ─── Main QR Scanner
-export default function QRScannerScreen() {
+// ─── Web fallback (camera not available in browser) ───────────────────────────
+function WebScannerFallback() {
+  return (
+    <View style={styles.center}>
+      <LinearGradient colors={['#0D1526','#111827']} style={StyleSheet.absoluteFill} />
+      <View style={styles.webCard}>
+        <LinearGradient
+          colors={['rgba(79,110,247,0.15)','rgba(124,58,237,0.08)']}
+          style={StyleSheet.absoluteFill}
+          borderRadius={RADIUS.xl}
+        />
+        <MaterialCommunityIcons name="cellphone-check" size={64} color={COLORS.indigo} />
+        <Text style={styles.webTitle}>Use ClubSphere Mobile App</Text>
+        <Text style={styles.webSub}>
+          QR scanning requires your phone camera.{'\n'}
+          Open this app on your mobile device to mark attendance.
+        </Text>
+        <View style={styles.stepsWrap}>
+          {[
+            { icon: 'cellphone', text: 'Open ClubSphere on your phone' },
+            { icon: 'account-circle', text: 'Login as Student' },
+            { icon: 'qrcode-scan', text: 'Tap "Scan" in the bottom nav' },
+            { icon: 'camera', text: 'Point at the QR shown by Admin' },
+          ].map((s, i) => (
+            <View key={i} style={styles.stepRow}>
+              <LinearGradient colors={['#4F6EF7','#7C3AED']} style={styles.stepBadge}>
+                <Text style={styles.stepNum}>{i + 1}</Text>
+              </LinearGradient>
+              <MaterialCommunityIcons name={s.icon} size={18} color={COLORS.indigoLight} />
+              <Text style={styles.stepText}>{s.text}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── Native Camera Scanner ────────────────────────────────────────────────────
+function NativeScanner() {
+  // Lazy import so Metro web bundler never processes expo-camera
+  const { CameraView, useCameraPermissions } = require('expo-camera');
+
   const [permission, requestPermission] = useCameraPermissions();
-  const [scanned,  setScanned]  = useState(false);
-  const [loading,  setLoading]  = useState(false);
-  const [result,   setResult]   = useState(null);
+  const [scanned,   setScanned]   = useState(false);
+  const [loading,   setLoading]   = useState(false);
+  const [result,    setResult]    = useState(null);
   const [duplicate, setDuplicate] = useState(null);
-  const [error,    setError]    = useState(null);
+  const [error,     setError]     = useState(null);
 
   const cornerAnim = useRef(new Animated.Value(0)).current;
 
@@ -182,13 +229,9 @@ export default function QRScannerScreen() {
   };
 
   const reset = () => {
-    setScanned(false);
-    setResult(null);
-    setDuplicate(null);
-    setError(null);
+    setScanned(false); setResult(null); setDuplicate(null); setError(null);
   };
 
-  // Permission gate
   if (!permission) {
     return (
       <View style={styles.center}>
@@ -213,7 +256,7 @@ export default function QRScannerScreen() {
     );
   }
 
-  if (result)    return <SuccessView  data={result}   onReset={reset} />;
+  if (result)    return <SuccessView   data={result}   onReset={reset} />;
   if (duplicate) return <DuplicateView eventTitle={duplicate} onReset={reset} />;
 
   const cornerOpacity = cornerAnim.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] });
@@ -246,12 +289,11 @@ export default function QRScannerScreen() {
         <View style={styles.overlayMidRow} pointerEvents="none">
           <View style={styles.overlaySide} />
           <View style={styles.scanBox}>
-            {/* Animated corners */}
             {[
-              { top: 0, left: 0,   borderTopWidth: 3,    borderLeftWidth: 3   },
-              { top: 0, right: 0,  borderTopWidth: 3,    borderRightWidth: 3  },
-              { bottom: 0, left: 0,  borderBottomWidth: 3, borderLeftWidth: 3  },
-              { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3 },
+              { top: 0, left: 0,     borderTopWidth: 3,    borderLeftWidth: 3   },
+              { top: 0, right: 0,    borderTopWidth: 3,    borderRightWidth: 3  },
+              { bottom: 0, left: 0,  borderBottomWidth: 3, borderLeftWidth: 3   },
+              { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3  },
             ].map((s, i) => (
               <Animated.View
                 key={i}
@@ -259,7 +301,6 @@ export default function QRScannerScreen() {
                 style={[styles.corner, s, { borderColor: COLORS.indigo, opacity: cornerOpacity }]}
               />
             ))}
-            {/* Scan line */}
             <Animated.View
               pointerEvents="none"
               style={[styles.scanLine, { transform: [{ translateY: scanLineY }] }]}
@@ -269,7 +310,6 @@ export default function QRScannerScreen() {
         </View>
         <View style={styles.overlayBot} pointerEvents="none" />
 
-        {/* Error toast */}
         {error && (
           <View style={styles.errToast}>
             <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#fff" />
@@ -277,7 +317,6 @@ export default function QRScannerScreen() {
           </View>
         )}
 
-        {/* Loading badge */}
         {loading && (
           <View style={styles.loadingBadge}>
             <MaterialCommunityIcons name="loading" size={18} color={COLORS.indigo} />
@@ -297,6 +336,15 @@ export default function QRScannerScreen() {
   );
 }
 
+// ─── Main Export — routes to web fallback or native scanner ──────────────────
+export default function QRScannerScreen() {
+  if (Platform.OS === 'web') {
+    return <WebScannerFallback />;
+  }
+  return <NativeScanner />;
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const DARK = 'rgba(5,8,20,0.72)';
 
 const styles = StyleSheet.create({
@@ -304,6 +352,7 @@ const styles = StyleSheet.create({
   center: {
     flex: 1, justifyContent: 'center', alignItems: 'center',
     backgroundColor: COLORS.bg, gap: SPACING.m, paddingHorizontal: SPACING.xl,
+    position: 'relative',
   },
   permText:  { color: COLORS.textSecond, fontSize: 15, textAlign: 'center' },
   grantBtn:  {
@@ -312,25 +361,49 @@ const styles = StyleSheet.create({
   },
   grantBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
+  // Web fallback
+  webCard: {
+    borderRadius: RADIUS.xl, padding: SPACING.xl, alignItems: 'center',
+    gap: SPACING.m, overflow: 'hidden',
+    borderWidth: 1, borderColor: COLORS.indigo + '33',
+    width: '100%', maxWidth: 400, ...SHADOWS.card,
+  },
+  webTitle: {
+    fontSize: 22, fontWeight: '900', color: COLORS.textPrimary,
+    textAlign: 'center', letterSpacing: -0.5,
+  },
+  webSub: {
+    fontSize: 14, color: COLORS.textSecond, textAlign: 'center', lineHeight: 21,
+  },
+  stepsWrap: { alignSelf: 'stretch', gap: SPACING.s },
+  stepRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.m,
+    backgroundColor: COLORS.bgElevated, borderRadius: RADIUS.m,
+    padding: SPACING.m, borderWidth: 1, borderColor: COLORS.border,
+  },
+  stepBadge: {
+    width: 24, height: 24, borderRadius: 12,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  stepNum:  { color: '#fff', fontSize: 12, fontWeight: '800' },
+  stepText: { flex: 1, fontSize: 13, color: COLORS.textSecond, fontWeight: '500' },
+
+  // Camera
   header: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.m,
     paddingTop: 52, paddingBottom: SPACING.m, paddingHorizontal: SPACING.l,
   },
   headerTitle: { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary },
   headerSub:   { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-
-  cameraWrap: { flex: 1, position: 'relative' },
+  cameraWrap:  { flex: 1, position: 'relative' },
 
   overlayTop:    { height: '18%', backgroundColor: DARK },
   overlayMidRow: { flexDirection: 'row', height: SCAN_BOX },
   overlaySide:   { flex: 1, backgroundColor: DARK },
   overlayBot:    { flex: 1, backgroundColor: DARK },
 
-  scanBox: {
-    width: SCAN_BOX, height: SCAN_BOX,
-    borderRadius: 14, overflow: 'hidden',
-  },
-  corner: { position: 'absolute', width: 28, height: 28, borderRadius: 4 },
+  scanBox: { width: SCAN_BOX, height: SCAN_BOX, borderRadius: 14, overflow: 'hidden' },
+  corner:  { position: 'absolute', width: 28, height: 28, borderRadius: 4 },
   scanLine: {
     position: 'absolute', left: 8, right: 8, height: 2,
     backgroundColor: COLORS.indigo,
@@ -359,6 +432,7 @@ const styles = StyleSheet.create({
   footerText: { color: COLORS.textMuted, fontSize: 13, flex: 1, lineHeight: 18 },
 });
 
+// ─── Result card styles ───────────────────────────────────────────────────────
 const ss = StyleSheet.create({
   overlay: {
     flex: 1, backgroundColor: COLORS.bg,
@@ -380,7 +454,7 @@ const ss = StyleSheet.create({
     fontSize: 28, fontWeight: '900', color: COLORS.textPrimary,
     letterSpacing: -1, textAlign: 'center',
   },
-  subhead: { fontSize: 15, color: COLORS.success, fontWeight: '600', textAlign: 'center' },
+  subhead:  { fontSize: 15, color: COLORS.success, fontWeight: '600', textAlign: 'center' },
   infoRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: COLORS.indigoGlow, borderRadius: RADIUS.m,
@@ -392,12 +466,11 @@ const ss = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     borderRadius: RADIUS.pill, paddingVertical: 8, paddingHorizontal: 20,
   },
-  xpText:  { color: '#fff', fontSize: 15, fontWeight: '800' },
+  xpText:   { color: '#fff', fontSize: 15, fontWeight: '800' },
   welcome: {
-    fontSize: 16, fontWeight: '700', color: COLORS.indigoLight,
-    textAlign: 'center',
+    fontSize: 16, fontWeight: '700', color: COLORS.indigoLight, textAlign: 'center',
   },
-  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  tagsRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
   tag: {
     backgroundColor: COLORS.bgElevated, borderRadius: RADIUS.pill,
     paddingVertical: 4, paddingHorizontal: 12,

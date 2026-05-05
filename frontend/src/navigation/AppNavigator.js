@@ -38,7 +38,9 @@ export default function AppNavigator() {
     );
   }
 
-  const isAdmin = user?.role === 'admin' || user?.backendRole === 'Admin';
+  // Normalize: both 'admin' (UI role) and raw backend roles route to AdminTabs
+  const ADMIN_ROLES = new Set(['admin', 'SuperAdmin', 'ClubAdmin']);
+  const isAdmin = user ? ADMIN_ROLES.has(user.role) || ADMIN_ROLES.has(user.backendRole) : false;
 
   return (
     <NavigationContainer theme={NAV_THEME}>
