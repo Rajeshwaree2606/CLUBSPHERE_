@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   StatusBar, ScrollView, SafeAreaView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
@@ -15,6 +16,7 @@ import GradientButton from '../../components/GradientButton';
 import ConfirmModal from '../../components/ConfirmModal';
 
 export default function AdminClubsScreen() {
+  const insets = useSafeAreaInsets();
   const { clubs, createClub, editClub, deleteClub, joinClub, leaveClub } = useContext(DataContext);
   const [modalVisible,   setModalVisible]   = useState(false);
   const [editingClub,    setEditingClub]    = useState(null);
@@ -53,21 +55,29 @@ export default function AdminClubsScreen() {
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !desc.trim()) {
-      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Name and description are required.' }); return;
+    if (loading) return; // prevent double-tap
+    if (!name.trim()) {
+      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Club name is required.' }); return;
+    }
+    if (!desc.trim()) {
+      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Description is required.' }); return;
     }
     setLoading(true);
+    console.log('🏛️ [ClubsScreen] handleSave:', editingClub ? 'edit' : 'create', { name, desc });
     const res = editingClub
       ? await editClub(editingClub.id, { name, description: desc })
       : await createClub({ name, description: desc });
     setLoading(false);
+    console.log('🏛️ [ClubsScreen] result:', res);
     if (res.success) {
       setModalVisible(false);
+      setName(''); setDesc(''); setEditingClub(null);
       Toast.show({ type: 'success', text1: editingClub ? 'Club updated ✓' : 'Club created ✓' });
     } else {
-      Toast.show({ type: 'error', text1: res.message || 'Operation failed' });
+      Toast.show({ type: 'error', text1: 'Failed', text2: res.message || 'Operation failed' });
     }
   };
+
 
   const renderItem = ({ item }) => (
     <PremiumCard style={styles.card}>
@@ -126,7 +136,7 @@ export default function AdminClubsScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.m }]}>
         <View>
           <Text style={styles.headerTitle}>Clubs</Text>
           <Text style={styles.headerSub}>{clubs.length} club{clubs.length !== 1 ? 's' : ''} registered</Text>
@@ -197,14 +207,14 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.l, paddingTop: SPACING.xxl, paddingBottom: SPACING.l,
+    paddingHorizontal: SPACING.l, paddingBottom: SPACING.l,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   headerTitle: { fontSize: 28, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.8 },
   headerSub:   { fontSize: 13, color: COLORS.textSecond, marginTop: 2 },
   addBtn: { borderRadius: RADIUS.pill, overflow: 'hidden', ...SHADOWS.gold },
   addBtnGrad: { width: 44, height: 44, borderRadius: RADIUS.pill, justifyContent: 'center', alignItems: 'center' },
-  list: { padding: SPACING.l, paddingBottom: 120 },
+  list: { padding: SPACING.l, paddingBottom: 140 },
   card: { marginBottom: SPACING.m },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m, marginBottom: SPACING.m },
   clubInitial: {

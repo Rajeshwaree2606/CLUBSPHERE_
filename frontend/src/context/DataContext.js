@@ -13,13 +13,13 @@ const toDateString = (value) => {
 };
 
 const mapClub = (row) => {
-  if (!row) return null;
+  if (!row || !row.id) return null;
   return {
     id: String(row.id),
-    name: row.name,
-    description: row.description,
-    // These are UI-only fields; backend doesn't currently provide them
-    memberCount: typeof row.memberCount === 'number' ? row.memberCount : 0,
+    name: row.name || 'Unnamed Club',
+    description: row.description || '',
+    // memberCount may come as camelCase (SQL alias) or snake_case
+    memberCount: Number(row.memberCount ?? row.member_count ?? 0),
     joined: Boolean(row.joined),
   };
 };
@@ -145,19 +145,40 @@ export const DataProvider = ({ children }) => {
 
   // ===================== Club Methods =====================
   const createClub = async (clubData) => {
+    const payload = {
+      name: clubData?.name,
+      description: clubData?.description || null,
+    };
+    console.log('🏛️ [DataContext] createClub → POST /api/clubs', JSON.stringify(payload));
     try {
-      const res = await api.post('/api/clubs', {
-        name: clubData?.name,
-        description: clubData?.description,
-      });
+      const res = await api.post('/api/clubs', payload);
+      console.log('🏛️ [DataContext] createClub ← response:', res?.data);
 
-      const created = mapClub(unwrap(res));
-      if (!created) return { success: false, message: 'Invalid server response' };
+      const raw = unwrap(res);
+      // Resilient mapping: even if mapClub gets unusual shape, still add to list
+      const created = mapClub(raw) || (raw?.id ? {
+        id: String(raw.id),
+        name: raw.name || payload.name,
+        description: raw.description || payload.description || '',
+        memberCount: 0,
+        joined: false,
+      } : null);
+
+      if (!created) {
+        console.warn('🏛️ [DataContext] mapClub returned null, raw:', raw);
+        return { success: false, message: 'Club created but response mapping failed' };
+      }
 
       setClubs((prev) => [created, ...prev]);
       return { success: true };
     } catch (e) {
-      return { success: false, message: e.response?.data?.message || 'Failed to create club' };
+      const msg = e.response?.data?.message || e.message || 'Failed to create club';
+      console.error('🏛️ [DataContext] createClub error:', {
+        status: e.response?.status,
+        message: msg,
+        data: e.response?.data,
+      });
+      return { success: false, message: msg };
     }
   };
 

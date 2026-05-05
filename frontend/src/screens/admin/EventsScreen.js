@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity, StatusBar, Platform, SafeAreaView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
@@ -17,6 +18,7 @@ import DateTimePickerField from '../../components/DateTimePickerField';
 import ImagePickerField from '../../components/ImagePickerField';
 
 export default function AdminEventsScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { events, createEvent, editEvent, deleteEvent, clubs, refreshData } = useContext(DataContext);
   const [modalVisible,   setModalVisible]   = useState(false);
   const [editingEvent,   setEditingEvent]   = useState(null);
@@ -214,7 +216,7 @@ export default function AdminEventsScreen({ navigation }) {
     <SafeAreaView style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.m }]}>
         <View>
           <Text style={styles.headerTitle}>Events</Text>
           <Text style={styles.headerSub}>
@@ -375,14 +377,14 @@ const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.l, paddingTop: SPACING.xxl, paddingBottom: SPACING.l,
+    paddingHorizontal: SPACING.l, paddingBottom: SPACING.l,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   headerTitle: { fontSize: 28, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.8 },
   headerSub:   { fontSize: 13, color: COLORS.textSecond, marginTop: 2 },
   addBtn:     { borderRadius: RADIUS.pill, overflow: 'hidden', ...SHADOWS.gold },
   addBtnGrad: { width: 44, height: 44, borderRadius: RADIUS.pill, justifyContent: 'center', alignItems: 'center' },
-  list: { padding: SPACING.l, paddingBottom: 120 },
+  list: { padding: SPACING.l, paddingBottom: 140 },
   card: { marginBottom: SPACING.m },
   eventHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.m, marginBottom: SPACING.s },
   datePill: {
