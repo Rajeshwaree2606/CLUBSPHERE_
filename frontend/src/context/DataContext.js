@@ -222,26 +222,45 @@ export const DataProvider = ({ children }) => {
   // ===================== Event Methods =====================
   const createEvent = async (eventData) => {
     try {
-      const res = await api.post('/api/events', {
-        club_id: eventData?.clubId ?? eventData?.club_id,
-        title: eventData?.title,
-        description: eventData?.description,
-        venue: eventData?.venue,
-        event_date: eventData?.date ?? eventData?.event_date,
-        start_time: eventData?.start_time || null,
-        end_time: eventData?.end_time || null,
+      const requestPayload = {
+        club_id:     eventData?.club_id ?? eventData?.clubId,
+        title:       eventData?.title,
+        description: eventData?.description || null,
+        venue:       eventData?.venue || null,
+        event_date:  eventData?.event_date ?? eventData?.date,
+        start_time:  eventData?.start_time || null,
+        end_time:    eventData?.end_time   || null,
         event_image: eventData?.event_image || null,
-      });
+      };
+
+      console.log('🗄️ [DataContext] createEvent → POST /api/events', JSON.stringify({
+        ...requestPayload,
+        event_image: requestPayload.event_image ? `[base64 len: ${requestPayload.event_image?.length}]` : null,
+      }));
+
+      const res = await api.post('/api/events', requestPayload);
+
+      console.log('🗄️ [DataContext] createEvent ← response:', res?.data);
 
       const created = mapEvent(unwrap(res));
-      if (!created) return { success: false, message: 'Invalid server response' };
+      if (!created) {
+        console.warn('🗄️ [DataContext] mapEvent returned null, raw:', unwrap(res));
+        return { success: false, message: 'Invalid server response' };
+      }
 
       setEvents((prev) => [created, ...prev]);
       return { success: true, data: unwrap(res) };
     } catch (e) {
-      return { success: false, message: e.response?.data?.message || 'Failed to create event' };
+      const msg = e.response?.data?.message || e.message || 'Failed to create event';
+      console.error('🗄️ [DataContext] createEvent error:', {
+        status: e.response?.status,
+        message: msg,
+        data: e.response?.data,
+      });
+      return { success: false, message: msg };
     }
   };
+
 
   const editEvent = async (eventId, eventData) => {
     try {

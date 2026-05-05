@@ -68,6 +68,7 @@ export default function AdminEventsScreen({ navigation }) {
   };
 
   const handleSave = async () => {
+    if (loading) return; // prevent double-tap
     if (!title.trim()) {
       Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Event title is required.' });
       return;
@@ -79,7 +80,7 @@ export default function AdminEventsScreen({ navigation }) {
     // Validate YYYY-MM-DD format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(date)) {
-      Toast.show({ type: 'error', text1: 'Invalid date', text2: 'Date must be in YYYY-MM-DD format.' });
+      Toast.show({ type: 'error', text1: 'Invalid date', text2: `Date "${date}" must be YYYY-MM-DD` });
       return;
     }
     const finalClubId = clubId || (clubs.length > 0 ? clubs[0].id : null);
@@ -87,21 +88,33 @@ export default function AdminEventsScreen({ navigation }) {
       Toast.show({ type: 'error', text1: 'No club', text2: 'Create a club first.' });
       return;
     }
+
     setLoading(true);
+
+    // ── Payload (use snake_case keys DataContext + backend expect) ──
     const payload = {
-      title,
-      description: desc,
-      date,
-      venue,
-      clubId: finalClubId,
-      start_time: startTime || null,
-      end_time: endTime || null,
-      event_image: eventImage || null,
+      title:        title.trim(),
+      description:  desc.trim(),
+      venue:        venue.trim(),
+      event_date:   date,          // ← key must be event_date (not date)
+      start_time:   startTime || null,
+      end_time:     endTime   || null,
+      club_id:      finalClubId,   // ← key must be club_id (not clubId)
+      event_image:  eventImage || null,
     };
+
+    console.log('📅 [EventsScreen] handleSave payload:', JSON.stringify({
+      ...payload,
+      event_image: payload.event_image ? `[base64 length: ${payload.event_image?.length}]` : null,
+    }));
+
     const res = editingEvent
       ? await editEvent(editingEvent.id, payload)
       : await createEvent(payload);
+
     setLoading(false);
+    console.log('📅 [EventsScreen] createEvent result:', res);
+
     if (res.success) {
       setModalVisible(false);
       if (refreshData) await refreshData(); // refresh event list to get qr_token
@@ -111,14 +124,17 @@ export default function AdminEventsScreen({ navigation }) {
           ...payload,
           id: res.data.id,
           qr_token: res.data.qr_token,
+          date: date,        // keep date for display
         };
         setQrEvent(newEvent);
       }
       Toast.show({ type: 'success', text1: editingEvent ? 'Event updated ✓' : 'Event created ✓ QR generated!' });
     } else {
-      Toast.show({ type: 'error', text1: res.message || 'Operation failed' });
+      console.warn('📅 [EventsScreen] createEvent failed:', res.message);
+      Toast.show({ type: 'error', text1: 'Failed', text2: res.message || 'Operation failed. Check logs.' });
     }
   };
+
 
   const renderItem = ({ item }) => {
     const clubName = clubs.find(c => c.id === item.clubId)?.name || 'General';

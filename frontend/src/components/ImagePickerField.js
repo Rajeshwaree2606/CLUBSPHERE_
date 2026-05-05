@@ -1,24 +1,91 @@
 /**
- * ImagePickerField.js
+ * ImagePickerField.js — v3
  *
- * Web-safe image picker.
- * On web: uses native HTML <input type="file"> (no expo-image-picker at all)
- * On native: uses expo-image-picker via platform file split
+ * Cross-platform image picker:
+ * - Web:    hidden <input type="file"> → FileReader → base64
+ * - Native: ActionSheet (Camera / Gallery) via expo-image-picker (lazy require)
+ *
+ * Image is OPTIONAL — parent can submit without it.
  */
 import React, { useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image,
-  Platform, ActivityIndicator,
+  Platform, ActivityIndicator, Alert, ActionSheetIOS,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../utils/theme';
 
+// ── Lazy helpers for native only ──────────────────────────────────────────────
+const pickFromGallery = async () => {
+  try {
+    const IP = require('expo-image-picker');
+    const { status } = await IP.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission Required',
+        'Please allow access to your photo library in Settings to upload an event image.',
+        [{ text: 'OK' }]
+      );
+      return null;
+    }
+    const result = await IP.launchImageLibraryAsync({
+      mediaTypes: IP.MediaTypeOptions
+        ? IP.MediaTypeOptions.Images
+        : ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.65,
+      base64: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return null;
+    const asset = result.assets[0];
+    return asset.base64
+      ? `data:image/jpeg;base64,${asset.base64}`
+      : asset.uri;
+  } catch (e) {
+    console.warn('Gallery error:', e.message);
+    Alert.alert('Gallery Error', e.message);
+    return null;
+  }
+};
+
+const pickFromCamera = async () => {
+  try {
+    const IP = require('expo-image-picker');
+    const { status } = await IP.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Camera Permission',
+        'Please allow camera access in Settings to take an event photo.',
+        [{ text: 'OK' }]
+      );
+      return null;
+    }
+    const result = await IP.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.65,
+      base64: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return null;
+    const asset = result.assets[0];
+    return asset.base64
+      ? `data:image/jpeg;base64,${asset.base64}`
+      : asset.uri;
+  } catch (e) {
+    console.warn('Camera error:', e.message);
+    Alert.alert('Camera Error', e.message);
+    return null;
+  }
+};
+
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function ImagePickerField({ image, onImageSelected, style }) {
   const [loading, setLoading] = useState(false);
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef(null); // web only
 
-  // ── Web: read selected file as base64 data URI ─────────────────────────────
+  // ── Web: FileReader ─────────────────────────────────────────────────────────
   const handleWebFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -30,8 +97,67 @@ export default function ImagePickerField({ image, onImageSelected, style }) {
     e.target.value = '';
   };
 
+  // ── Native: ActionSheet → Camera or Gallery ─────────────────────────────────
+  const openNativePicker = () => {
+    const options = ['Camera', 'Choose from Gallery', 'Cancel'];
+    const cancelIndex = 2;
+
+    if (Platform.OS === 'ios') {
+      // iOS native ActionSheet
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: cancelIndex, title: 'Add Event Image' },
+        async (idx) => {
+          if (idx === 0) {
+            setLoading(true);
+            const uri = await pickFromCamera();
+            if (uri) onImageSelected(uri);
+            setLoading(false);
+          } else if (idx === 1) {
+            setLoading(true);
+            const uri = await pickFromGallery();
+            if (uri) onImageSelected(uri);
+            setLoading(false);
+          }
+        }
+      );
+    } else {
+      // Android: Alert.alert as action sheet substitute
+      Alert.alert(
+        'Add Event Image',
+        'Choose an option',
+        [
+          {
+            text: '📷  Camera',
+            onPress: async () => {
+              setLoading(true);
+              const uri = await pickFromCamera();
+              if (uri) onImageSelected(uri);
+              setLoading(false);
+            },
+          },
+          {
+            text: '🖼️  Choose from Gallery',
+            onPress: async () => {
+              setLoading(true);
+              const uri = await pickFromGallery();
+              if (uri) onImageSelected(uri);
+              setLoading(false);
+            },
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ],
+        { cancelable: true }
+      );
+    }
+  };
+
+  // ── Unified open trigger ────────────────────────────────────────────────────
   const openPicker = () => {
-    fileInputRef.current?.click();
+    if (Platform.OS === 'web') {
+      fileInputRef.current?.click();
+    } else {
+      openNativePicker();
+    }
   };
 
   return (
@@ -46,7 +172,7 @@ export default function ImagePickerField({ image, onImageSelected, style }) {
       </View>
 
       {image ? (
-        /* ── Preview ── */
+        /* ── Preview with Remove + Change ── */
         <View style={styles.previewWrap}>
           <Image source={{ uri: image }} style={styles.preview} resizeMode="cover" />
           <TouchableOpacity
@@ -63,26 +189,29 @@ export default function ImagePickerField({ image, onImageSelected, style }) {
           </TouchableOpacity>
         </View>
       ) : (
-        /* ── Upload button ── */
+        /* ── Upload Button ── */
         <TouchableOpacity
           style={styles.uploadBtn}
           onPress={openPicker}
-          activeOpacity={0.7}
+          activeOpacity={0.75}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color={COLORS.indigo} />
+            <ActivityIndicator color={COLORS.indigo} size="small" />
           ) : (
             <>
-              <MaterialCommunityIcons name="image-plus" size={28} color={COLORS.indigo} />
+              <MaterialCommunityIcons name="image-plus" size={30} color={COLORS.indigo} />
               <Text style={styles.uploadText}>Tap to add event image</Text>
-              <Text style={styles.uploadHint}>JPG, PNG — 16:9 recommended</Text>
+              <Text style={styles.uploadHint}>
+                {Platform.OS === 'web' ? 'JPG, PNG' : 'Camera or Gallery'}
+                {' '}— optional
+              </Text>
             </>
           )}
         </TouchableOpacity>
       )}
 
-      {/* Hidden web file input — Metro never includes this on native */}
+      {/* Web-only hidden file input — Metro never bundles this on native */}
       {Platform.OS === 'web' && (
         <input
           ref={fileInputRef}
@@ -110,14 +239,16 @@ const styles = StyleSheet.create({
   },
   uploadBtn: {
     backgroundColor: COLORS.bgElevated, borderRadius: RADIUS.m,
-    borderWidth: 1.5, borderColor: COLORS.indigo + '44',
-    borderStyle: 'dashed', paddingVertical: SPACING.l,
+    borderWidth: 1.5, borderColor: COLORS.indigo + '55',
+    borderStyle: 'dashed', paddingVertical: SPACING.xl,
     alignItems: 'center', gap: SPACING.s,
   },
-  uploadText: { fontSize: 14, fontWeight: '600', color: COLORS.indigoLight },
+  uploadText: { fontSize: 14, fontWeight: '700', color: COLORS.indigoLight },
   uploadHint: { fontSize: 12, color: COLORS.textMuted },
-  previewWrap: { borderRadius: RADIUS.l, overflow: 'hidden', position: 'relative' },
-  preview:     { width: '100%', height: 160, borderRadius: RADIUS.l },
+  previewWrap: {
+    borderRadius: RADIUS.l, overflow: 'hidden', position: 'relative',
+  },
+  preview: { width: '100%', height: 160, borderRadius: RADIUS.l },
   removeBtn: {
     position: 'absolute', top: 8, right: 8,
     borderRadius: RADIUS.pill, overflow: 'hidden',
@@ -128,7 +259,7 @@ const styles = StyleSheet.create({
   },
   changeBtn: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(0,0,0,0.55)', paddingVertical: 8, alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)', paddingVertical: 8, alignItems: 'center',
   },
   changeBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 });

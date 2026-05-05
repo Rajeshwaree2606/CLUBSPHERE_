@@ -54,7 +54,14 @@
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan QR codes for event attendance."
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to upload event images.",
+          "cameraPermission": "Allow $(PRODUCT_NAME) to use your camera to take event photos."
+        }
+      ]
     ]
   }
 }
