@@ -11,13 +11,22 @@ const { pool } = require("../config/db");
 // ========================
 const createEvent = async (req, res) => {
   try {
-    const { club_id, title, description, venue, event_date } = req.body;
+  const { club_id, title, description, venue, event_date, start_time, end_time } = req.body;
 
     // --- Input validation ---
     if (!club_id || !title || !event_date) {
       return res.status(400).json({
         success: false,
         message: "club_id, title, and event_date are required",
+      });
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(event_date)) {
+      return res.status(400).json({
+        success: false,
+        message: "event_date must be in YYYY-MM-DD format (e.g. 2025-06-15)",
       });
     }
 
@@ -39,10 +48,11 @@ const createEvent = async (req, res) => {
 
     // --- Insert event ---
     const result = await pool.query(
-      `INSERT INTO events (club_id, title, description, venue, event_date, created_by, qr_token)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO events (club_id, title, description, venue, event_date, start_time, end_time, created_by, qr_token)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [club_id, title, description || null, venue || null, event_date, req.user.id, qr_token]
+      [club_id, title, description || null, venue || null, event_date,
+       start_time || null, end_time || null, req.user.id, qr_token]
     );
 
     return res.status(201).json({
@@ -68,7 +78,7 @@ const getEvents = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT e.id, e.club_id, e.title, e.description, e.venue, e.event_date, e.created_at,
-              e.qr_token,
+              e.qr_token, e.start_time, e.end_time,
               c.name AS club_name,
               u.name AS created_by_name,
               (er_me.user_id IS NOT NULL) AS joined
@@ -106,7 +116,7 @@ const getEventById = async (req, res) => {
 
     const result = await pool.query(
       `SELECT e.id, e.club_id, e.title, e.description, e.venue, e.event_date, e.created_at,
-              e.qr_token,
+              e.qr_token, e.start_time, e.end_time,
               c.name AS club_name,
               u.name AS created_by_name,
               (er_me.user_id IS NOT NULL) AS joined

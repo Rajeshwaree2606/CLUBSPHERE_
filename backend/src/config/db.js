@@ -154,12 +154,18 @@ const connectDB = async () => {
       );
     `);
 
-    // Add qr_token to events table for QR attendance scanning (Migration)
+    // Add qr_token, start_time, end_time to events table (Migration)
     await client.query(`
       DO $$ 
       BEGIN 
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='qr_token') THEN
           ALTER TABLE events ADD COLUMN qr_token VARCHAR(255) UNIQUE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='start_time') THEN
+          ALTER TABLE events ADD COLUMN start_time VARCHAR(10);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='end_time') THEN
+          ALTER TABLE events ADD COLUMN end_time VARCHAR(10);
         END IF;
       END $$;
     `);

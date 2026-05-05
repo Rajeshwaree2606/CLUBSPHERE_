@@ -13,6 +13,7 @@ import PremiumInput from '../../components/PremiumInput';
 import GradientButton from '../../components/GradientButton';
 import ConfirmModal from '../../components/ConfirmModal';
 import QRCodeModal from '../../components/QRCodeModal';
+import DateTimePickerField from '../../components/DateTimePickerField';
 
 export default function AdminEventsScreen({ navigation }) {
   const { events, createEvent, editEvent, deleteEvent, clubs } = useContext(DataContext);
@@ -21,28 +22,38 @@ export default function AdminEventsScreen({ navigation }) {
   const [title,          setTitle]          = useState('');
   const [desc,           setDesc]           = useState('');
   const [date,           setDate]           = useState('');
+  const [startTime,      setStartTime]      = useState('');
+  const [endTime,        setEndTime]        = useState('');
   const [venue,          setVenue]          = useState('');
   const [clubId,         setClubId]         = useState('');
   const [loading,        setLoading]        = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [eventToDelete,  setEventToDelete]  = useState(null);
-  const [qrEvent,        setQrEvent]        = useState(null);  // event shown in QR modal
+  const [qrEvent,        setQrEvent]        = useState(null);
 
   useEffect(() => {
     if (!clubId && clubs.length > 0) setClubId(clubs[0].id);
   }, [clubs]);
 
   const openCreate = () => {
-    setEditingEvent(null); setTitle(''); setDesc(''); setDate(''); setVenue('');
+    setEditingEvent(null);
+    setTitle(''); setDesc(''); setDate(''); setStartTime(''); setEndTime(''); setVenue('');
     setClubId(clubs.length > 0 ? clubs[0].id : '');
     setModalVisible(true);
   };
+
   const openEdit = e => {
-    setEditingEvent(e); setTitle(e.title); setDesc(e.description || '');
-    setDate(e.date || ''); setVenue(e.venue || '');
+    setEditingEvent(e);
+    setTitle(e.title);
+    setDesc(e.description || '');
+    setDate(e.date || '');
+    setStartTime(e.start_time || '');
+    setEndTime(e.end_time || '');
+    setVenue(e.venue || '');
     setClubId(e.clubId || (clubs.length > 0 ? clubs[0].id : ''));
     setModalVisible(true);
   };
+
   const askDelete = id => { setEventToDelete(id); setConfirmVisible(true); };
 
   const confirmDelete = async () => {
@@ -53,20 +64,42 @@ export default function AdminEventsScreen({ navigation }) {
   };
 
   const handleSave = async () => {
-    if (!title.trim() || !date.trim()) {
-      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Title and date are required.' }); return;
+    if (!title.trim()) {
+      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Event title is required.' });
+      return;
+    }
+    if (!date.trim()) {
+      Toast.show({ type: 'error', text1: 'Missing date', text2: 'Please select an event date.' });
+      return;
+    }
+    // Validate YYYY-MM-DD format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+      Toast.show({ type: 'error', text1: 'Invalid date', text2: 'Date must be in YYYY-MM-DD format.' });
+      return;
     }
     const finalClubId = clubId || (clubs.length > 0 ? clubs[0].id : null);
     if (!finalClubId) {
-      Toast.show({ type: 'error', text1: 'No club', text2: 'Create a club first.' }); return;
+      Toast.show({ type: 'error', text1: 'No club', text2: 'Create a club first.' });
+      return;
     }
     setLoading(true);
-    const payload = { title, description: desc, date, venue, clubId: finalClubId };
-    const res = editingEvent ? await editEvent(editingEvent.id, payload) : await createEvent(payload);
+    const payload = {
+      title,
+      description: desc,
+      date,
+      venue,
+      clubId: finalClubId,
+      start_time: startTime || null,
+      end_time: endTime || null,
+    };
+    const res = editingEvent
+      ? await editEvent(editingEvent.id, payload)
+      : await createEvent(payload);
     setLoading(false);
     if (res.success) {
       setModalVisible(false);
-      Toast.show({ type: 'success', text1: editingEvent ? 'Event updated ✓' : 'Event created ✓' });
+      Toast.show({ type: 'success', text1: editingEvent ? 'Event updated ✓' : 'Event created ✓ QR generated!' });
     } else {
       Toast.show({ type: 'error', text1: res.message || 'Operation failed' });
     }
@@ -74,13 +107,21 @@ export default function AdminEventsScreen({ navigation }) {
 
   const renderItem = ({ item }) => {
     const clubName = clubs.find(c => c.id === item.clubId)?.name || 'General';
+    const timeRange = item.start_time
+      ? `${item.start_time}${item.end_time ? ' – ' + item.end_time : ''}`
+      : null;
+
     return (
       <PremiumCard style={styles.card}>
         <View style={styles.eventHeader}>
+          {/* Date block */}
           <View style={styles.datePill}>
             <Text style={styles.dateDay}>{item.date?.split('-')[2] || '--'}</Text>
-            <Text style={styles.dateMon}>{item.date ? new Date(item.date).toLocaleString('en', { month: 'short' }) : '---'}</Text>
+            <Text style={styles.dateMon}>
+              {item.date ? new Date(item.date).toLocaleString('en', { month: 'short' }) : '---'}
+            </Text>
           </View>
+
           <View style={{ flex: 1 }}>
             <Text style={styles.eventTitle} numberOfLines={1}>{item.title}</Text>
             <View style={styles.metaRow}>
@@ -90,12 +131,28 @@ export default function AdminEventsScreen({ navigation }) {
               <MaterialCommunityIcons name="google-circles-extended" size={12} color={COLORS.textMuted} />
               <Text style={styles.metaText}>{clubName}</Text>
             </View>
+            {timeRange && (
+              <View style={[styles.metaRow, { marginTop: 2 }]}>
+                <MaterialCommunityIcons name="clock-outline" size={12} color={COLORS.indigo} />
+                <Text style={[styles.metaText, { color: COLORS.indigoLight }]}>{timeRange}</Text>
+              </View>
+            )}
           </View>
+
+          {/* QR indicator */}
+          {item.qr_token && (
+            <TouchableOpacity style={styles.qrBadge} onPress={() => setQrEvent(item)}>
+              <MaterialCommunityIcons name="qrcode" size={18} color={COLORS.indigo} />
+            </TouchableOpacity>
+          )}
         </View>
 
-        {item.description ? <Text style={styles.eventDesc} numberOfLines={2}>{item.description}</Text> : null}
+        {item.description
+          ? <Text style={styles.eventDesc} numberOfLines={2}>{item.description}</Text>
+          : null}
 
         <View style={styles.cardDivider} />
+
         <View style={styles.actions}>
           {/* View QR */}
           <TouchableOpacity style={styles.actionBtn} onPress={() => setQrEvent(item)}>
@@ -125,10 +182,13 @@ export default function AdminEventsScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Events</Text>
-          <Text style={styles.headerSub}>{events.length} event{events.length !== 1 ? 's' : ''} scheduled</Text>
+          <Text style={styles.headerSub}>
+            {events.length} event{events.length !== 1 ? 's' : ''} scheduled
+          </Text>
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={openCreate}>
           <LinearGradient colors={GRADIENTS.gold} style={styles.addBtnGrad}>
@@ -152,32 +212,77 @@ export default function AdminEventsScreen({ navigation }) {
         }
       />
 
+      {/* Create / Edit Modal */}
       <PremiumModal
         visible={modalVisible}
         title={editingEvent ? 'Edit Event' : 'Schedule Event'}
-        subtitle={editingEvent ? 'Update event details' : 'Add a new campus event'}
+        subtitle={editingEvent ? 'Update event details' : 'New event — QR code auto-generated'}
         icon="calendar-edit"
         onClose={() => { setModalVisible(false); setEditingEvent(null); }}
         footer={
           <>
-            <GradientButton title="Cancel" variant="ghost" onPress={() => { setModalVisible(false); setEditingEvent(null); }} style={{ flex: 1 }} fullWidth={false} />
-            <GradientButton title={editingEvent ? 'Save Changes' : 'Create Event'} variant="gold" onPress={handleSave} loading={loading} style={{ flex: 1 }} fullWidth={false} />
+            <GradientButton
+              title="Cancel" variant="ghost"
+              onPress={() => { setModalVisible(false); setEditingEvent(null); }}
+              style={{ flex: 1 }} fullWidth={false}
+            />
+            <GradientButton
+              title={editingEvent ? 'Save Changes' : 'Create & Generate QR'}
+              variant="gold" onPress={handleSave} loading={loading}
+              style={{ flex: 1 }} fullWidth={false}
+            />
           </>
         }
       >
-        <PremiumInput label="Event Title" placeholder="e.g. Annual Hackathon" value={title} onChangeText={setTitle} leftIcon="calendar-star" autoCapitalize="words" />
-        <PremiumInput label="Description" placeholder="What's this event about?" value={desc} onChangeText={setDesc} multiline numberOfLines={3} leftIcon="text-box-outline" />
         <PremiumInput
-          label="Date"
-          placeholder="YYYY-MM-DD"
-          value={date}
-          onChangeText={setDate}
-          leftIcon="calendar-range"
-          webType={Platform.OS === 'web' ? 'date' : undefined}
-          keyboardType="numbers-and-punctuation"
+          label="Event Title" placeholder="e.g. Annual Hackathon"
+          value={title} onChangeText={setTitle}
+          leftIcon="calendar-star" autoCapitalize="words"
         />
-        <PremiumInput label="Venue" placeholder="e.g. Main Auditorium" value={venue} onChangeText={setVenue} leftIcon="map-marker-outline" autoCapitalize="words" />
+        <PremiumInput
+          label="Description" placeholder="What's this event about?"
+          value={desc} onChangeText={setDesc}
+          multiline numberOfLines={3} leftIcon="text-box-outline"
+        />
+        <PremiumInput
+          label="Venue" placeholder="e.g. Main Auditorium"
+          value={venue} onChangeText={setVenue}
+          leftIcon="map-marker-outline" autoCapitalize="words"
+        />
 
+        {/* ── Date & Time pickers */}
+        <DateTimePickerField
+          label="Event Date"
+          icon="calendar-range"
+          mode="date"
+          value={date}
+          onChange={setDate}
+          placeholder="Select date"
+        />
+
+        <View style={styles.timeRow}>
+          <DateTimePickerField
+            label="Start Time"
+            icon="clock-start"
+            mode="time"
+            value={startTime}
+            onChange={setStartTime}
+            placeholder="Start"
+            style={{ flex: 1 }}
+          />
+          <View style={styles.timeSep} />
+          <DateTimePickerField
+            label="End Time"
+            icon="clock-end"
+            mode="time"
+            value={endTime}
+            onChange={setEndTime}
+            placeholder="End"
+            style={{ flex: 1 }}
+          />
+        </View>
+
+        {/* Club selector */}
         {clubs.length > 1 && (
           <View style={styles.clubSelector}>
             <Text style={styles.clubSelectorLabel}>ASSIGN TO CLUB</Text>
@@ -191,10 +296,22 @@ export default function AdminEventsScreen({ navigation }) {
                   {clubId === c.id && (
                     <LinearGradient colors={GRADIENTS.gold} style={StyleSheet.absoluteFill} borderRadius={RADIUS.pill} />
                   )}
-                  <Text style={[styles.chipText, clubId === c.id && { color: '#000', fontWeight: '700' }]}>{c.name}</Text>
+                  <Text style={[styles.chipText, clubId === c.id && { color: '#000', fontWeight: '700' }]}>
+                    {c.name}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+        )}
+
+        {/* QR info note */}
+        {!editingEvent && (
+          <View style={styles.qrNote}>
+            <MaterialCommunityIcons name="qrcode-scan" size={15} color={COLORS.indigo} />
+            <Text style={styles.qrNoteText}>
+              A unique QR code will be auto-generated for student attendance scanning.
+            </Text>
           </View>
         )}
       </PremiumModal>
@@ -208,7 +325,6 @@ export default function AdminEventsScreen({ navigation }) {
         onCancel={() => { setConfirmVisible(false); setEventToDelete(null); }}
       />
 
-      {/* QR Code Modal */}
       <QRCodeModal
         visible={!!qrEvent}
         event={qrEvent}
@@ -219,15 +335,15 @@ export default function AdminEventsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+  root:   { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.l, paddingTop: SPACING.xxl, paddingBottom: SPACING.l,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   headerTitle: { fontSize: 28, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.8 },
-  headerSub: { fontSize: 13, color: COLORS.textSecond, marginTop: 2 },
-  addBtn: { borderRadius: RADIUS.pill, overflow: 'hidden', ...SHADOWS.gold },
+  headerSub:   { fontSize: 13, color: COLORS.textSecond, marginTop: 2 },
+  addBtn:     { borderRadius: RADIUS.pill, overflow: 'hidden', ...SHADOWS.gold },
   addBtnGrad: { width: 44, height: 44, borderRadius: RADIUS.pill, justifyContent: 'center', alignItems: 'center' },
   list: { padding: SPACING.l, paddingBottom: 120 },
   card: { marginBottom: SPACING.m },
@@ -236,29 +352,48 @@ const styles = StyleSheet.create({
     width: 48, borderRadius: RADIUS.m, backgroundColor: COLORS.goldGlow,
     borderWidth: 1, borderColor: COLORS.goldDim, alignItems: 'center', paddingVertical: 6,
   },
-  dateDay: { fontSize: 20, fontWeight: '800', color: COLORS.gold, lineHeight: 24 },
-  dateMon: { fontSize: 10, fontWeight: '700', color: COLORS.gold, letterSpacing: 0.5 },
+  dateDay:    { fontSize: 20, fontWeight: '800', color: COLORS.gold, lineHeight: 24 },
+  dateMon:    { fontSize: 10, fontWeight: '700', color: COLORS.gold, letterSpacing: 0.5 },
   eventTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, letterSpacing: -0.3 },
-  metaRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  metaText:  { fontSize: 12, color: COLORS.textMuted },
-  metaDot:   { width: 3, height: 3, borderRadius: 1.5, backgroundColor: COLORS.textMuted },
-  eventDesc: { fontSize: 13, color: COLORS.textSecond, lineHeight: 19, marginBottom: SPACING.m },
+  metaRow:    { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  metaText:   { fontSize: 12, color: COLORS.textMuted },
+  metaDot:    { width: 3, height: 3, borderRadius: 1.5, backgroundColor: COLORS.textMuted },
+  eventDesc:  { fontSize: 13, color: COLORS.textSecond, lineHeight: 19, marginBottom: SPACING.m },
+  qrBadge: {
+    width: 36, height: 36, borderRadius: RADIUS.m,
+    backgroundColor: COLORS.indigoGlow, borderWidth: 1, borderColor: COLORS.indigo + '44',
+    justifyContent: 'center', alignItems: 'center',
+  },
   cardDivider: { height: 1, backgroundColor: COLORS.border, marginBottom: SPACING.m },
-  actions: { flexDirection: 'row', alignItems: 'center' },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 4 },
+  actions:    { flexDirection: 'row', alignItems: 'center' },
+  actionBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 4 },
   actionText: { fontSize: 12, fontWeight: '600' },
-  actionSep: { width: 1, height: 18, backgroundColor: COLORS.border },
-  empty: { alignItems: 'center', paddingTop: 80, gap: SPACING.m },
-  emptyText: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary },
-  emptySub: { fontSize: 14, color: COLORS.textSecond },
-  clubSelector: { marginTop: SPACING.s },
+  actionSep:  { width: 1, height: 18, backgroundColor: COLORS.border },
+  empty:      { alignItems: 'center', paddingTop: 80, gap: SPACING.m },
+  emptyText:  { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary },
+  emptySub:   { fontSize: 14, color: COLORS.textSecond },
+
+  // Time row
+  timeRow: { flexDirection: 'row', gap: 0 },
+  timeSep: { width: SPACING.s },
+
+  // Club selector
+  clubSelector:      { marginTop: SPACING.s },
   clubSelectorLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: COLORS.textMuted, marginBottom: SPACING.s },
-  clubChips: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.s },
+  clubChips:         { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.s },
   chip: {
     borderRadius: RADIUS.pill, paddingVertical: 7, paddingHorizontal: 14,
-    borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bgElevated,
-    overflow: 'hidden',
+    borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bgElevated, overflow: 'hidden',
   },
   chipActive: { borderColor: COLORS.gold },
-  chipText: { fontSize: 13, color: COLORS.textSecond, fontWeight: '500' },
+  chipText:   { fontSize: 13, color: COLORS.textSecond, fontWeight: '500' },
+
+  // QR note
+  qrNote: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: COLORS.indigoGlow, borderRadius: RADIUS.m,
+    padding: SPACING.m, borderWidth: 1, borderColor: COLORS.indigo + '33',
+    marginTop: SPACING.s,
+  },
+  qrNoteText: { color: COLORS.indigoLight, fontSize: 13, flex: 1, lineHeight: 18 },
 });

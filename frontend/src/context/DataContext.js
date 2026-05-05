@@ -38,6 +38,8 @@ const mapEvent = (row) => {
     maxParticipants: typeof row.maxParticipants === 'number' ? row.maxParticipants : 100,
     joined: Boolean(row.joined),
     qr_token: row.qr_token || null,
+    start_time: row.start_time || null,
+    end_time: row.end_time || null,
   };
 };
 
@@ -225,6 +227,8 @@ export const DataProvider = ({ children }) => {
         description: eventData?.description,
         venue: eventData?.venue,
         event_date: eventData?.date ?? eventData?.event_date,
+        start_time: eventData?.start_time || null,
+        end_time: eventData?.end_time || null,
       });
 
       const created = mapEvent(unwrap(res));
@@ -245,6 +249,8 @@ export const DataProvider = ({ children }) => {
         venue: eventData?.venue,
         event_date: eventData?.date ?? eventData?.event_date,
         club_id: eventData?.clubId ?? eventData?.club_id,
+        start_time: eventData?.start_time || null,
+        end_time: eventData?.end_time || null,
       });
       const updated = mapEvent(unwrap(res));
       if (updated) {
