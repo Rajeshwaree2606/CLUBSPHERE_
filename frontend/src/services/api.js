@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 import { initialClubs, initialEvents, initialNotifications, initialBudgets, initialCertificates } from './mockData';
 
 // Real backend base URL (override in Expo via EXPO_PUBLIC_API_BASE_URL)
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "https://clubsphere-319t.onrender.com";
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "https://clubsphere-3l9t.onrender.com";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
