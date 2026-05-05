@@ -15,7 +15,7 @@ const makeQRToken = () =>
 // ========================
 const createEvent = async (req, res) => {
   try {
-    const { club_id, title, description, venue, event_date, start_time, end_time } = req.body;
+    const { club_id, title, description, venue, event_date, start_time, end_time, event_image } = req.body;
 
     // --- Input validation ---
     if (!club_id || !title || !event_date) {
@@ -46,8 +46,8 @@ const createEvent = async (req, res) => {
     // --- Insert event ---
     const result = await pool.query(
       `INSERT INTO events
-         (club_id, title, description, venue, event_date, start_time, end_time, created_by, qr_token)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         (club_id, title, description, venue, event_date, start_time, end_time, event_image, created_by, qr_token)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         club_id,
@@ -57,6 +57,7 @@ const createEvent = async (req, res) => {
         event_date,
         start_time  || null,
         end_time    || null,
+        event_image || null,
         req.user.id,
         qr_token,
       ]
@@ -81,7 +82,7 @@ const getEvents = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT e.id, e.club_id, e.title, e.description, e.venue,
-              e.event_date, e.start_time, e.end_time, e.qr_token, e.created_at,
+              e.event_date, e.start_time, e.end_time, e.qr_token, e.event_image, e.created_at,
               c.name AS club_name,
               u.name AS created_by_name,
               (er_me.user_id IS NOT NULL) AS joined
@@ -110,7 +111,7 @@ const getEventById = async (req, res) => {
 
     const result = await pool.query(
       `SELECT e.id, e.club_id, e.title, e.description, e.venue,
-              e.event_date, e.start_time, e.end_time, e.qr_token, e.created_at,
+              e.event_date, e.start_time, e.end_time, e.qr_token, e.event_image, e.created_at,
               c.name AS club_name,
               u.name AS created_by_name,
               (er_me.user_id IS NOT NULL) AS joined

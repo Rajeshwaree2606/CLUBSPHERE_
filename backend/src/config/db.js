@@ -167,6 +167,9 @@ const connectDB = async () => {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='end_time') THEN
           ALTER TABLE events ADD COLUMN end_time VARCHAR(10);
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='event_image') THEN
+          ALTER TABLE events ADD COLUMN event_image TEXT;
+        END IF;
       END $$;
     `);
 

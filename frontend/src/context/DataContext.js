@@ -40,6 +40,7 @@ const mapEvent = (row) => {
     qr_token: row.qr_token || null,
     start_time: row.start_time || null,
     end_time: row.end_time || null,
+    event_image: row.event_image || null,
   };
 };
 
@@ -229,6 +230,7 @@ export const DataProvider = ({ children }) => {
         event_date: eventData?.date ?? eventData?.event_date,
         start_time: eventData?.start_time || null,
         end_time: eventData?.end_time || null,
+        event_image: eventData?.event_image || null,
       });
 
       const created = mapEvent(unwrap(res));
@@ -251,6 +253,7 @@ export const DataProvider = ({ children }) => {
         club_id: eventData?.clubId ?? eventData?.club_id,
         start_time: eventData?.start_time || null,
         end_time: eventData?.end_time || null,
+        event_image: eventData?.event_image || null,
       });
       const updated = mapEvent(unwrap(res));
       if (updated) {

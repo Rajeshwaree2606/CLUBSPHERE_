@@ -14,6 +14,7 @@ import GradientButton from '../../components/GradientButton';
 import ConfirmModal from '../../components/ConfirmModal';
 import QRCodeModal from '../../components/QRCodeModal';
 import DateTimePickerField from '../../components/DateTimePickerField';
+import ImagePickerField from '../../components/ImagePickerField';
 
 export default function AdminEventsScreen({ navigation }) {
   const { events, createEvent, editEvent, deleteEvent, clubs, refreshData } = useContext(DataContext);
@@ -30,6 +31,7 @@ export default function AdminEventsScreen({ navigation }) {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [eventToDelete,  setEventToDelete]  = useState(null);
   const [qrEvent,        setQrEvent]        = useState(null);
+  const [eventImage,     setEventImage]     = useState(null);  // base64 or URL
 
   useEffect(() => {
     if (!clubId && clubs.length > 0) setClubId(clubs[0].id);
@@ -38,6 +40,7 @@ export default function AdminEventsScreen({ navigation }) {
   const openCreate = () => {
     setEditingEvent(null);
     setTitle(''); setDesc(''); setDate(''); setStartTime(''); setEndTime(''); setVenue('');
+    setEventImage(null);
     setClubId(clubs.length > 0 ? clubs[0].id : '');
     setModalVisible(true);
   };
@@ -50,6 +53,7 @@ export default function AdminEventsScreen({ navigation }) {
     setStartTime(e.start_time || '');
     setEndTime(e.end_time || '');
     setVenue(e.venue || '');
+    setEventImage(e.event_image || null);
     setClubId(e.clubId || (clubs.length > 0 ? clubs[0].id : ''));
     setModalVisible(true);
   };
@@ -92,6 +96,7 @@ export default function AdminEventsScreen({ navigation }) {
       clubId: finalClubId,
       start_time: startTime || null,
       end_time: endTime || null,
+      event_image: eventImage || null,
     };
     const res = editingEvent
       ? await editEvent(editingEvent.id, payload)
@@ -258,6 +263,12 @@ export default function AdminEventsScreen({ navigation }) {
           label="Venue" placeholder="e.g. Main Auditorium"
           value={venue} onChangeText={setVenue}
           leftIcon="map-marker-outline" autoCapitalize="words"
+        />
+
+        {/* ── Image picker */}
+        <ImagePickerField
+          image={eventImage}
+          onImageSelected={setEventImage}
         />
 
         {/* ── Date & Time pickers */}
