@@ -2,6 +2,7 @@
 // src/controllers/eventController.js — Event operations
 // --------------------------------------------------
 
+const crypto = require('crypto');
 const { pool } = require("../config/db");
 
 // ========================
@@ -33,12 +34,15 @@ const createEvent = async (req, res) => {
       });
     }
 
+    // --- Auto-generate a unique QR token for this event ---
+    const qr_token = `CS-${Date.now()}-${crypto.randomBytes(12).toString('hex')}`;
+
     // --- Insert event ---
     const result = await pool.query(
-      `INSERT INTO events (club_id, title, description, venue, event_date, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO events (club_id, title, description, venue, event_date, created_by, qr_token)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [club_id, title, description || null, venue || null, event_date, req.user.id]
+      [club_id, title, description || null, venue || null, event_date, req.user.id, qr_token]
     );
 
     return res.status(201).json({
@@ -64,6 +68,7 @@ const getEvents = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT e.id, e.club_id, e.title, e.description, e.venue, e.event_date, e.created_at,
+              e.qr_token,
               c.name AS club_name,
               u.name AS created_by_name,
               (er_me.user_id IS NOT NULL) AS joined
@@ -101,6 +106,7 @@ const getEventById = async (req, res) => {
 
     const result = await pool.query(
       `SELECT e.id, e.club_id, e.title, e.description, e.venue, e.event_date, e.created_at,
+              e.qr_token,
               c.name AS club_name,
               u.name AS created_by_name,
               (er_me.user_id IS NOT NULL) AS joined

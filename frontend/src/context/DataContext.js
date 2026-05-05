@@ -37,6 +37,7 @@ const mapEvent = (row) => {
     time: row.time || 'TBD',
     maxParticipants: typeof row.maxParticipants === 'number' ? row.maxParticipants : 100,
     joined: Boolean(row.joined),
+    qr_token: row.qr_token || null,
   };
 };
 

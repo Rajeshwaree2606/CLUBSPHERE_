@@ -12,6 +12,7 @@ import PremiumModal from '../../components/PremiumModal';
 import PremiumInput from '../../components/PremiumInput';
 import GradientButton from '../../components/GradientButton';
 import ConfirmModal from '../../components/ConfirmModal';
+import QRCodeModal from '../../components/QRCodeModal';
 
 export default function AdminEventsScreen({ navigation }) {
   const { events, createEvent, editEvent, deleteEvent, clubs } = useContext(DataContext);
@@ -25,6 +26,7 @@ export default function AdminEventsScreen({ navigation }) {
   const [loading,        setLoading]        = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [eventToDelete,  setEventToDelete]  = useState(null);
+  const [qrEvent,        setQrEvent]        = useState(null);  // event shown in QR modal
 
   useEffect(() => {
     if (!clubId && clubs.length > 0) setClubId(clubs[0].id);
@@ -95,6 +97,12 @@ export default function AdminEventsScreen({ navigation }) {
 
         <View style={styles.cardDivider} />
         <View style={styles.actions}>
+          {/* View QR */}
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setQrEvent(item)}>
+            <MaterialCommunityIcons name="qrcode" size={15} color={COLORS.indigo} />
+            <Text style={[styles.actionText, { color: COLORS.indigo }]}>View QR</Text>
+          </TouchableOpacity>
+          <View style={styles.actionSep} />
           <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('EventAttendance', { eventId: item.id })}>
             <MaterialCommunityIcons name="clipboard-check-outline" size={15} color={COLORS.cobaltLight} />
             <Text style={[styles.actionText, { color: COLORS.cobaltLight }]}>Attendance</Text>
@@ -198,6 +206,13 @@ export default function AdminEventsScreen({ navigation }) {
         confirmLabel="Delete"
         onConfirm={confirmDelete}
         onCancel={() => { setConfirmVisible(false); setEventToDelete(null); }}
+      />
+
+      {/* QR Code Modal */}
+      <QRCodeModal
+        visible={!!qrEvent}
+        event={qrEvent}
+        onClose={() => setQrEvent(null)}
       />
     </View>
   );
