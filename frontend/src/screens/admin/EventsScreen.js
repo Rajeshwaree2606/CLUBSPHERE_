@@ -1,8 +1,9 @@
 import React, { useContext, useState, useEffect } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity, StatusBar, Platform, SafeAreaView,
+  View, Text, FlatList, StyleSheet, TouchableOpacity,
+  StatusBar, Platform, Alert,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context'; // ← use this NOT react-native's
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
@@ -18,7 +19,6 @@ import DateTimePickerField from '../../components/DateTimePickerField';
 import ImagePickerField from '../../components/ImagePickerField';
 
 export default function AdminEventsScreen({ navigation }) {
-  const insets = useSafeAreaInsets();
   const { events, createEvent, editEvent, deleteEvent, clubs, refreshData } = useContext(DataContext);
   const [modalVisible,   setModalVisible]   = useState(false);
   const [editingEvent,   setEditingEvent]   = useState(null);
@@ -33,7 +33,7 @@ export default function AdminEventsScreen({ navigation }) {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [eventToDelete,  setEventToDelete]  = useState(null);
   const [qrEvent,        setQrEvent]        = useState(null);
-  const [eventImage,     setEventImage]     = useState(null);  // base64 or URL
+  const [eventImage,     setEventImage]     = useState(null);
 
   useEffect(() => {
     if (!clubId && clubs.length > 0) setClubId(clubs[0].id);
@@ -69,74 +69,112 @@ export default function AdminEventsScreen({ navigation }) {
     Toast.show({ type: res.success ? 'success' : 'error', text1: res.success ? 'Event deleted' : 'Delete failed' });
   };
 
+  // ── MAIN SUBMIT ─────────────────────────────────────────────────────────────
   const handleSave = async () => {
-    if (loading) return; // prevent double-tap
+    // ① Guard double-tap
+    if (loading) {
+      console.log('🛑 [handleSave] Already loading, ignoring tap');
+      return;
+    }
+
+    console.log('🔵 [handleSave] BUTTON PRESSED — starting validation');
+    console.log('  title:', JSON.stringify(title));
+    console.log('  date:', JSON.stringify(date));
+    console.log('  clubId state:', JSON.stringify(clubId));
+    console.log('  clubs count:', clubs.length);
+
+    // ② Validate title
     if (!title.trim()) {
-      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Event title is required.' });
+      Toast.show({ type: 'error', text1: 'Missing Title', text2: 'Event title is required.' });
       return;
     }
-    if (!date.trim()) {
-      Toast.show({ type: 'error', text1: 'Missing date', text2: 'Please select an event date.' });
+
+    // ③ Validate date
+    if (!date || !date.trim()) {
+      Toast.show({ type: 'error', text1: 'Missing Date', text2: 'Please select an event date.' });
       return;
     }
-    // Validate YYYY-MM-DD format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(date)) {
-      Toast.show({ type: 'error', text1: 'Invalid date', text2: `Date "${date}" must be YYYY-MM-DD` });
+    if (!dateRegex.test(date.trim())) {
+      Toast.show({ type: 'error', text1: 'Invalid Date', text2: `"${date}" must be YYYY-MM-DD` });
       return;
     }
+
+    // ④ Resolve club_id
     const finalClubId = clubId || (clubs.length > 0 ? clubs[0].id : null);
     if (!finalClubId) {
-      Toast.show({ type: 'error', text1: 'No club', text2: 'Create a club first.' });
+      Toast.show({ type: 'error', text1: 'No Club', text2: 'Create a club first before adding events.' });
       return;
     }
+
+    // ⑤ Build payload — exact snake_case keys the backend expects
+    const payload = {
+      title:       title.trim(),
+      description: desc.trim() || null,
+      venue:       venue.trim() || null,
+      event_date:  date.trim(),    // ← backend field name
+      start_time:  startTime || null,
+      end_time:    endTime   || null,
+      club_id:     finalClubId,    // ← backend field name
+      event_image: eventImage || null,
+    };
+
+    console.log('🟡 [handleSave] Payload to send:', JSON.stringify({
+      ...payload,
+      event_image: payload.event_image
+        ? `[base64 len=${payload.event_image.length}]`
+        : null,
+    }));
 
     setLoading(true);
 
-    // ── Payload (use snake_case keys DataContext + backend expect) ──
-    const payload = {
-      title:        title.trim(),
-      description:  desc.trim(),
-      venue:        venue.trim(),
-      event_date:   date,          // ← key must be event_date (not date)
-      start_time:   startTime || null,
-      end_time:     endTime   || null,
-      club_id:      finalClubId,   // ← key must be club_id (not clubId)
-      event_image:  eventImage || null,
-    };
+    try {
+      const res = editingEvent
+        ? await editEvent(editingEvent.id, payload)
+        : await createEvent(payload);
 
-    console.log('📅 [EventsScreen] handleSave payload:', JSON.stringify({
-      ...payload,
-      event_image: payload.event_image ? `[base64 length: ${payload.event_image?.length}]` : null,
-    }));
+      console.log('🟢 [handleSave] API result:', JSON.stringify(res));
 
-    const res = editingEvent
-      ? await editEvent(editingEvent.id, payload)
-      : await createEvent(payload);
-
-    setLoading(false);
-    console.log('📅 [EventsScreen] createEvent result:', res);
-
-    if (res.success) {
-      setModalVisible(false);
-      if (refreshData) await refreshData(); // refresh event list to get qr_token
-      if (!editingEvent && res.data) {
-        // Auto-open QR modal for the newly created event
-        const newEvent = {
-          ...payload,
-          id: res.data.id,
-          qr_token: res.data.qr_token,
-          date: date,        // keep date for display
-        };
-        setQrEvent(newEvent);
+      if (res.success) {
+        setModalVisible(false);
+        resetForm();
+        if (refreshData) await refreshData();
+        if (!editingEvent && res.data) {
+          setQrEvent({
+            ...payload,
+            id:       res.data.id,
+            qr_token: res.data.qr_token,
+            date,
+          });
+        }
+        Toast.show({
+          type: 'success',
+          text1: editingEvent ? '✓ Event Updated' : '✓ Event Created — QR Ready!',
+        });
+      } else {
+        console.warn('🔴 [handleSave] FAILED:', res.message);
+        Toast.show({
+          type: 'error',
+          text1: 'Event Creation Failed',
+          text2: res.message || 'Unknown error — check Expo logs',
+        });
       }
-      Toast.show({ type: 'success', text1: editingEvent ? 'Event updated ✓' : 'Event created ✓ QR generated!' });
-    } else {
-      console.warn('📅 [EventsScreen] createEvent failed:', res.message);
-      Toast.show({ type: 'error', text1: 'Failed', text2: res.message || 'Operation failed. Check logs.' });
+    } catch (err) {
+      console.error('🔴 [handleSave] EXCEPTION:', err);
+      Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Unexpected error' });
+    } finally {
+      setLoading(false);
     }
   };
 
+  const resetForm = () => {
+    setTitle(''); setDesc(''); setDate('');
+    setStartTime(''); setEndTime(''); setVenue('');
+    setEventImage(null);
+    setEditingEvent(null);
+    setClubId(clubs.length > 0 ? clubs[0].id : '');
+  };
+  // ────────────────────────────────────────────────────────────────────────────
 
   const renderItem = ({ item }) => {
     const clubName = clubs.find(c => c.id === item.clubId)?.name || 'General';
@@ -172,7 +210,6 @@ export default function AdminEventsScreen({ navigation }) {
             )}
           </View>
 
-          {/* QR indicator */}
           {item.qr_token && (
             <TouchableOpacity style={styles.qrBadge} onPress={() => setQrEvent(item)}>
               <MaterialCommunityIcons name="qrcode" size={18} color={COLORS.indigo} />
@@ -187,7 +224,6 @@ export default function AdminEventsScreen({ navigation }) {
         <View style={styles.cardDivider} />
 
         <View style={styles.actions}>
-          {/* View QR */}
           <TouchableOpacity style={styles.actionBtn} onPress={() => setQrEvent(item)}>
             <MaterialCommunityIcons name="qrcode" size={15} color={COLORS.indigo} />
             <Text style={[styles.actionText, { color: COLORS.indigo }]}>View QR</Text>
@@ -213,10 +249,12 @@ export default function AdminEventsScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+    // SafeAreaView from react-native-safe-area-context handles ALL insets correctly
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} translucent={false} />
 
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.m }]}>
+      {/* Header — SafeAreaView already added top inset, no extra paddingTop needed */}
+      <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Events</Text>
           <Text style={styles.headerSub}>
@@ -249,49 +287,58 @@ export default function AdminEventsScreen({ navigation }) {
       <PremiumModal
         visible={modalVisible}
         title={editingEvent ? 'Edit Event' : 'Schedule Event'}
-        subtitle={editingEvent ? 'Update event details' : 'New event — QR code auto-generated'}
+        subtitle={editingEvent ? 'Update event details' : 'New event — QR auto-generated'}
         icon="calendar-edit"
         onClose={() => { setModalVisible(false); setEditingEvent(null); }}
         footer={
           <>
             <GradientButton
-              title="Cancel" variant="ghost"
+              title="Cancel"
+              variant="ghost"
               onPress={() => { setModalVisible(false); setEditingEvent(null); }}
-              style={{ flex: 1 }} fullWidth={false}
+              style={{ flex: 1 }}
+              fullWidth={false}
             />
             <GradientButton
-              title={editingEvent ? 'Save Changes' : 'Create & Generate QR'}
-              variant="gold" onPress={handleSave} loading={loading}
-              style={{ flex: 1 }} fullWidth={false}
+              title={loading ? 'Creating…' : (editingEvent ? 'Save Changes' : 'Create & Generate QR')}
+              variant="gold"
+              onPress={handleSave}
+              loading={loading}
+              disabled={loading}
+              style={{ flex: 1 }}
+              fullWidth={false}
             />
           </>
         }
       >
         <PremiumInput
-          label="Event Title" placeholder="e.g. Annual Hackathon"
+          label="Event Title *"
+          placeholder="e.g. Annual Hackathon"
           value={title} onChangeText={setTitle}
           leftIcon="calendar-star" autoCapitalize="words"
         />
         <PremiumInput
-          label="Description" placeholder="What's this event about?"
+          label="Description"
+          placeholder="What's this event about?"
           value={desc} onChangeText={setDesc}
           multiline numberOfLines={3} leftIcon="text-box-outline"
         />
         <PremiumInput
-          label="Venue" placeholder="e.g. Main Auditorium"
+          label="Venue"
+          placeholder="e.g. Main Auditorium"
           value={venue} onChangeText={setVenue}
           leftIcon="map-marker-outline" autoCapitalize="words"
         />
 
-        {/* ── Image picker */}
+        {/* Image picker — optional */}
         <ImagePickerField
           image={eventImage}
           onImageSelected={setEventImage}
         />
 
-        {/* ── Date & Time pickers */}
+        {/* Date picker */}
         <DateTimePickerField
-          label="Event Date"
+          label="Event Date *"
           icon="calendar-range"
           mode="date"
           value={date}
@@ -299,6 +346,7 @@ export default function AdminEventsScreen({ navigation }) {
           placeholder="Select date"
         />
 
+        {/* Time pickers */}
         <View style={styles.timeRow}>
           <DateTimePickerField
             label="Start Time"
@@ -321,7 +369,7 @@ export default function AdminEventsScreen({ navigation }) {
           />
         </View>
 
-        {/* Club selector */}
+        {/* Club selector — only shown if multiple clubs */}
         {clubs.length > 1 && (
           <View style={styles.clubSelector}>
             <Text style={styles.clubSelectorLabel}>ASSIGN TO CLUB</Text>
@@ -344,7 +392,7 @@ export default function AdminEventsScreen({ navigation }) {
           </View>
         )}
 
-        {/* QR info note */}
+        {/* QR note */}
         {!editingEvent && (
           <View style={styles.qrNote}>
             <MaterialCommunityIcons name="qrcode-scan" size={15} color={COLORS.indigo} />
@@ -377,14 +425,16 @@ const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.l, paddingBottom: SPACING.l,
+    paddingHorizontal: SPACING.l,
+    paddingTop: SPACING.m,      // small gap below safe area
+    paddingBottom: SPACING.l,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   headerTitle: { fontSize: 28, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.8 },
   headerSub:   { fontSize: 13, color: COLORS.textSecond, marginTop: 2 },
   addBtn:     { borderRadius: RADIUS.pill, overflow: 'hidden', ...SHADOWS.gold },
   addBtnGrad: { width: 44, height: 44, borderRadius: RADIUS.pill, justifyContent: 'center', alignItems: 'center' },
-  list: { padding: SPACING.l, paddingBottom: 140 },
+  list: { padding: SPACING.l, paddingBottom: 160 }, // 160 = tab bar height + buffer
   card: { marginBottom: SPACING.m },
   eventHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.m, marginBottom: SPACING.s },
   datePill: {
@@ -411,12 +461,8 @@ const styles = StyleSheet.create({
   empty:      { alignItems: 'center', paddingTop: 80, gap: SPACING.m },
   emptyText:  { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary },
   emptySub:   { fontSize: 14, color: COLORS.textSecond },
-
-  // Time row
-  timeRow: { flexDirection: 'row', gap: 0 },
-  timeSep: { width: SPACING.s },
-
-  // Club selector
+  timeRow:    { flexDirection: 'row', gap: 0 },
+  timeSep:    { width: SPACING.s },
   clubSelector:      { marginTop: SPACING.s },
   clubSelectorLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: COLORS.textMuted, marginBottom: SPACING.s },
   clubChips:         { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.s },
@@ -426,8 +472,6 @@ const styles = StyleSheet.create({
   },
   chipActive: { borderColor: COLORS.gold },
   chipText:   { fontSize: 13, color: COLORS.textSecond, fontWeight: '500' },
-
-  // QR note
   qrNote: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
     backgroundColor: COLORS.indigoGlow, borderRadius: RADIUS.m,

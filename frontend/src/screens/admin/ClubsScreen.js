@@ -1,9 +1,9 @@
 import React, { useContext, useState } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  StatusBar, ScrollView, SafeAreaView,
+  StatusBar,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
@@ -16,7 +16,6 @@ import GradientButton from '../../components/GradientButton';
 import ConfirmModal from '../../components/ConfirmModal';
 
 export default function AdminClubsScreen() {
-  const insets = useSafeAreaInsets();
   const { clubs, createClub, editClub, deleteClub, joinClub, leaveClub } = useContext(DataContext);
   const [modalVisible,   setModalVisible]   = useState(false);
   const [editingClub,    setEditingClub]    = useState(null);
@@ -132,11 +131,11 @@ export default function AdminClubsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.m }]}>
+      <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Clubs</Text>
           <Text style={styles.headerSub}>{clubs.length} club{clubs.length !== 1 ? 's' : ''} registered</Text>
@@ -207,7 +206,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.l, paddingBottom: SPACING.l,
+    paddingHorizontal: SPACING.l, paddingTop: SPACING.m, paddingBottom: SPACING.l,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   headerTitle: { fontSize: 28, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.8 },
