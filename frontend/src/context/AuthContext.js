@@ -148,8 +148,35 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithGoogle = async (idToken) => {
+    try {
+      const response = await api.post('/api/auth/google', { idToken });
+
+      const payload = response?.data?.data;
+      const token = payload?.token;
+      const backendRole = payload?.role;
+      const uiRole = ['SuperAdmin', 'ClubAdmin', 'admin'].includes(backendRole) ? 'admin' : 'student';
+      const nextUser = payload
+        ? { id: payload.id, name: payload.name, email: payload.email, role: uiRole, backendRole, avatar_url: payload.avatar_url }
+        : null;
+
+      if (!token || !nextUser) {
+        return { success: false, message: 'Google login failed: invalid server response' };
+      }
+
+      await AsyncStorage.setItem('user', JSON.stringify(nextUser));
+      await AsyncStorage.setItem('token', token);
+      setAuthToken(token);
+      setUser(nextUser);
+
+      return { success: true };
+    } catch (e) {
+      return { success: false, message: e.response?.data?.message || 'Google login failed' };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, signup, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

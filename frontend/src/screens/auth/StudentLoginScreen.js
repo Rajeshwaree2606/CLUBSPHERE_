@@ -9,13 +9,14 @@ import { AuthContext } from '../../context/AuthContext';
 import { COLORS, RADIUS, SPACING } from '../../utils/theme';
 import GradientButton from '../../components/GradientButton';
 import PremiumInput from '../../components/PremiumInput';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 
 const { height } = Dimensions.get('window');
 
 export default function StudentLoginScreen({ navigation }) {
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
-  const { login } = useContext(AuthContext);
+  const { login, loginWithGoogle } = useContext(AuthContext);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -35,6 +36,13 @@ export default function StudentLoginScreen({ navigation }) {
     const result = await login(email, password);
     setIsLoading(false);
     if (!result.success) setError(result.message || 'Login failed. Check your credentials.');
+  };
+
+  const handleGoogleSignIn = async (idToken) => {
+    setIsLoading(true); setError(null);
+    const result = await loginWithGoogle(idToken);
+    setIsLoading(false);
+    if (!result.success) setError(result.message || 'Google sign-in failed.');
   };
 
   return (
@@ -111,6 +119,11 @@ export default function StudentLoginScreen({ navigation }) {
               variant="indigo"
               icon="login"
               onPress={handleLogin}
+              loading={isLoading}
+            />
+            <GoogleSignInButton
+              onSignIn={handleGoogleSignIn}
+              onError={setError}
               loading={isLoading}
             />
           </View>
