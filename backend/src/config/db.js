@@ -170,6 +170,19 @@ const connectDB = async () => {
       END $$;
     `);
 
+    // Backfill: generate QR tokens for any existing events that don't have one
+    const { rows: missingQR } = await client.query(
+      "SELECT id FROM events WHERE qr_token IS NULL OR qr_token = ''"
+    );
+    if (missingQR.length > 0) {
+      const crypto = require('crypto');
+      for (const row of missingQR) {
+        const token = `CS-${Date.now()}-${crypto.randomBytes(12).toString('hex')}`;
+        await client.query('UPDATE events SET qr_token = $1 WHERE id = $2', [token, row.id]);
+      }
+      console.log(`✅ Backfilled QR tokens for ${missingQR.length} existing event(s)`);
+    }
+
     // --- Seed Default Users (to match frontend UI hints) ---
     const bcrypt = require("bcryptjs");
     

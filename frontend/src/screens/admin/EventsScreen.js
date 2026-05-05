@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity, StatusBar, Platform,
+  View, Text, FlatList, StyleSheet, TouchableOpacity, StatusBar, Platform, SafeAreaView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -16,7 +16,7 @@ import QRCodeModal from '../../components/QRCodeModal';
 import DateTimePickerField from '../../components/DateTimePickerField';
 
 export default function AdminEventsScreen({ navigation }) {
-  const { events, createEvent, editEvent, deleteEvent, clubs } = useContext(DataContext);
+  const { events, createEvent, editEvent, deleteEvent, clubs, refreshData } = useContext(DataContext);
   const [modalVisible,   setModalVisible]   = useState(false);
   const [editingEvent,   setEditingEvent]   = useState(null);
   const [title,          setTitle]          = useState('');
@@ -99,6 +99,16 @@ export default function AdminEventsScreen({ navigation }) {
     setLoading(false);
     if (res.success) {
       setModalVisible(false);
+      if (refreshData) await refreshData(); // refresh event list to get qr_token
+      if (!editingEvent && res.data) {
+        // Auto-open QR modal for the newly created event
+        const newEvent = {
+          ...payload,
+          id: res.data.id,
+          qr_token: res.data.qr_token,
+        };
+        setQrEvent(newEvent);
+      }
       Toast.show({ type: 'success', text1: editingEvent ? 'Event updated ✓' : 'Event created ✓ QR generated!' });
     } else {
       Toast.show({ type: 'error', text1: res.message || 'Operation failed' });
@@ -180,7 +190,7 @@ export default function AdminEventsScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.root}>
+    <SafeAreaView style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
       <View style={styles.header}>
@@ -330,7 +340,7 @@ export default function AdminEventsScreen({ navigation }) {
         event={qrEvent}
         onClose={() => setQrEvent(null)}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

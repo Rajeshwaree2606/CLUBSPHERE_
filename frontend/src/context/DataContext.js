@@ -235,7 +235,7 @@ export const DataProvider = ({ children }) => {
       if (!created) return { success: false, message: 'Invalid server response' };
 
       setEvents((prev) => [created, ...prev]);
-      return { success: true };
+      return { success: true, data: unwrap(res) };
     } catch (e) {
       return { success: false, message: e.response?.data?.message || 'Failed to create event' };
     }

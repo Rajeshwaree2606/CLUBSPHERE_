@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  StatusBar, ScrollView,
+  StatusBar, ScrollView, SafeAreaView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -122,7 +122,7 @@ export default function AdminClubsScreen() {
   );
 
   return (
-    <View style={styles.root}>
+    <SafeAreaView style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
       {/* Header */}
@@ -189,7 +189,7 @@ export default function AdminClubsScreen() {
         onCancel={() => setLeaveTarget(null)}
         variant="gold"
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
