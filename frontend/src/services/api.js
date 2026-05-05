@@ -7,9 +7,11 @@ import { initialClubs, initialEvents, initialNotifications, initialBudgets, init
 // Real backend base URL (override in Expo via EXPO_PUBLIC_API_BASE_URL)
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "https://clubsphere-3l9t.onrender.com";
 
+console.log('🌐 [API] Base URL:', API_BASE_URL); // Visible in Expo Go / Metro logs
+
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // 30s — handles Render free-tier cold-starts (can take 20-25s)
   headers: {
     'Content-Type': 'application/json',
   },

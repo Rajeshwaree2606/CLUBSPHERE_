@@ -2,31 +2,38 @@
   "expo": {
     "name": "ClubSphere",
     "slug": "clubsphere",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#3730a3"
+      "backgroundColor": "#0D1526"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.clubsphere.app"
+      "bundleIdentifier": "com.clubsphere.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ClubSphere uses your camera to scan QR codes for event attendance.",
+        "NSPhotoLibraryUsageDescription": "ClubSphere accesses your photo library to upload event images."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#3730a3"
+        "backgroundColor": "#0D1526"
       },
       "package": "com.clubsphere.app",
-      "versionCode": 1,
+      "versionCode": 2,
       "permissions": [
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -36,10 +43,18 @@
     "extra": {
       "eas": {
         "projectId": "ad440a75-a46c-4ed5-8cf8-65ad3102a5ea"
-      }
+      },
+      "apiBaseUrl": "https://clubsphere-3l9t.onrender.com"
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan QR codes for event attendance."
+        }
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

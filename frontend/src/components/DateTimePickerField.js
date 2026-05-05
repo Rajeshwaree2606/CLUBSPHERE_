@@ -1,20 +1,24 @@
 /**
- * DateTimePickerField.js
+ * DateTimePickerField.js — v3
  *
- * - Date mode:  Web → native HTML calendar picker (no typing)
- *               Native → display only (no typing)
- * - Time mode:  Custom modal with Hour / Minute / AM-PM columns
- *               Works on Web and Native — no typing allowed
- *               Stores "HH:MM" (24h) for backend, displays "3:00 AM"
+ * Date mode:
+ *   - Web  → native HTML <input type="date"> (invisible overlay)
+ *   - Android/iOS → @react-native-community/datetimepicker (native OS picker)
+ *
+ * Time mode:
+ *   - ALL platforms → custom 3-column modal (Hour / Minute / AM-PM)
+ *   - No manual typing. Stores "HH:MM" 24h for backend, displays "3:00 AM"
  */
 import React, { useRef, useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, Platform, TouchableOpacity,
-  Modal, ScrollView,
+  Modal, ScrollView, Dimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../utils/theme';
+
+const { width: SCREEN_W } = Dimensions.get('window');
 
 // ── Display formatters ────────────────────────────────────────────────────────
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -60,13 +64,15 @@ const HOURS   = ['1','2','3','4','5','6','7','8','9','10','11','12'];
 const MINUTES = ['00','05','10','15','20','25','30','35','40','45','50','55'];
 const AMPMS   = ['AM','PM'];
 
-// ── Scrollable column ─────────────────────────────────────────────────────────
+// ── Single scrollable column ──────────────────────────────────────────────────
 function Column({ items, selected, onSelect }) {
   return (
     <ScrollView
-      style={{ width: 72, maxHeight: 240 }}
+      style={tStyles.colScroll}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingVertical: 6 }}
+      contentContainerStyle={{ paddingVertical: 8 }}
+      keyboardShouldPersistTaps="always"
+      nestedScrollEnabled
     >
       {items.map((item) => {
         const active = item === selected;
@@ -75,11 +81,11 @@ function Column({ items, selected, onSelect }) {
             key={item}
             style={[tStyles.colItem, active && tStyles.colItemActive]}
             onPress={() => onSelect(item)}
-            activeOpacity={0.7}
+            activeOpacity={0.6}
           >
             {active && (
               <LinearGradient
-                colors={['rgba(79,110,247,0.3)', 'rgba(124,58,237,0.2)']}
+                colors={['rgba(79,110,247,0.35)', 'rgba(124,58,237,0.25)']}
                 style={StyleSheet.absoluteFill}
                 borderRadius={RADIUS.m}
               />
@@ -100,7 +106,7 @@ function TimePickerModal({ visible, value, onConfirm, onClose }) {
   const [selMinute, setSelMinute] = useState('00');
   const [selAmpm,   setSelAmpm]   = useState('AM');
 
-  // ✅ Correct React pattern: sync state in useEffect, not during render
+  // Sync selections when modal opens — useEffect is the correct React pattern
   useEffect(() => {
     if (visible) {
       const p = parse24h(value);
@@ -108,7 +114,7 @@ function TimePickerModal({ visible, value, onConfirm, onClose }) {
       setSelMinute(p.minute);
       setSelAmpm(p.ampm);
     }
-  }, [visible]); // only run when modal opens/closes
+  }, [visible]);
 
   const handleConfirm = () => {
     onConfirm(to24h(selHour, selMinute, selAmpm));
@@ -119,30 +125,41 @@ function TimePickerModal({ visible, value, onConfirm, onClose }) {
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={tStyles.overlay}>
-        <View style={tStyles.sheet}>
+      <TouchableOpacity
+        style={tStyles.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => {}}
+          style={tStyles.sheet}
+        >
           {/* Header */}
           <LinearGradient colors={['#4F6EF7', '#7C3AED']} style={tStyles.header}>
             <MaterialCommunityIcons name="clock-outline" size={20} color="#fff" />
             <Text style={tStyles.headerTitle}>Select Time</Text>
           </LinearGradient>
 
-          {/* Large preview */}
-          <Text style={tStyles.preview}>
-            {selHour}:{selMinute} {selAmpm}
-          </Text>
+          {/* Large live preview */}
+          <View style={tStyles.previewWrap}>
+            <Text style={tStyles.preview}>
+              {selHour}:{selMinute}{' '}
+              <Text style={tStyles.previewAmpm}>{selAmpm}</Text>
+            </Text>
+          </View>
 
           {/* Column labels */}
           <View style={tStyles.colLabels}>
-            <Text style={[tStyles.colLabel, { width: 72 }]}>Hour</Text>
+            <Text style={tStyles.colLabel}>Hour</Text>
             <View style={tStyles.colSep} />
-            <Text style={[tStyles.colLabel, { width: 72 }]}>Min</Text>
+            <Text style={tStyles.colLabel}>Min</Text>
             <View style={tStyles.colSep} />
-            <Text style={[tStyles.colLabel, { width: 72 }]}>AM/PM</Text>
+            <Text style={tStyles.colLabel}>AM/PM</Text>
           </View>
 
           {/* Scrollable columns */}
@@ -159,15 +176,77 @@ function TimePickerModal({ visible, value, onConfirm, onClose }) {
             <TouchableOpacity style={tStyles.cancelBtn} onPress={onClose}>
               <Text style={tStyles.cancelText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={tStyles.confirmWrap} onPress={handleConfirm} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={tStyles.confirmWrap}
+              onPress={handleConfirm}
+              activeOpacity={0.85}
+            >
               <LinearGradient colors={['#4F6EF7', '#7C3AED']} style={tStyles.confirmGrad}>
                 <Text style={tStyles.confirmText}>Confirm</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
+  );
+}
+
+// ── Native Date Picker (Android / iOS) ───────────────────────────────────────
+function NativeDatePicker({ value, onChange, placeholder }) {
+  const [show, setShow] = useState(false);
+  const display = formatDateDisplay(value);
+
+  // Parse current value to Date object
+  const currentDate = value
+    ? (() => { const [y,m,d] = value.split('-').map(Number); return new Date(y, m-1, d); })()
+    : new Date();
+
+  const handleChange = (event, selectedDate) => {
+    // On Android the picker closes automatically; on iOS we close manually
+    if (Platform.OS === 'android') setShow(false);
+    if (event.type === 'dismissed') { setShow(false); return; }
+    if (selectedDate) {
+      const y = selectedDate.getFullYear();
+      const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const d = String(selectedDate.getDate()).padStart(2, '0');
+      onChange(`${y}-${m}-${d}`);
+    }
+    if (Platform.OS === 'ios') setShow(false);
+  };
+
+  // Lazy require so Metro web bundler never touches this module
+  const DateTimePicker = Platform.OS !== 'web'
+    ? require('@react-native-community/datetimepicker').default
+    : null;
+
+  return (
+    <>
+      <TouchableOpacity
+        style={fStyles.container}
+        onPress={() => setShow(true)}
+        activeOpacity={0.8}
+      >
+        <View style={fStyles.inner}>
+          <Text style={display ? fStyles.valueText : fStyles.placeholderText}>
+            {display || placeholder || 'Select date'}
+          </Text>
+          <MaterialCommunityIcons name="calendar-month" size={20} color={COLORS.gold} />
+        </View>
+      </TouchableOpacity>
+
+      {show && DateTimePicker && (
+        <DateTimePicker
+          value={currentDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
+          onChange={handleChange}
+          minimumDate={new Date(2020, 0, 1)}
+          maximumDate={new Date(2035, 11, 31)}
+          themeVariant="dark"
+        />
+      )}
+    </>
   );
 }
 
@@ -193,7 +272,6 @@ function WebDatePicker({ value, onChange, placeholder }) {
           color={focused ? COLORS.gold : COLORS.textMuted}
         />
       </TouchableOpacity>
-      {/* Transparent overlay input triggers native calendar */}
       <input
         ref={inputRef}
         type="date"
@@ -228,7 +306,7 @@ export default function DateTimePickerField({
       )}
 
       {mode === 'time' ? (
-        /* ── Time: custom modal always (web + native) ── */
+        /* ── Time: custom modal (web + native) ── */
         <>
           <TouchableOpacity
             style={fStyles.container}
@@ -239,7 +317,7 @@ export default function DateTimePickerField({
               <Text style={display ? fStyles.valueText : fStyles.placeholderText}>
                 {display || placeholder || 'Select time'}
               </Text>
-              <MaterialCommunityIcons name="clock-outline" size={20} color={COLORS.textMuted} />
+              <MaterialCommunityIcons name="clock-outline" size={20} color={COLORS.indigo} />
             </View>
           </TouchableOpacity>
           <TimePickerModal
@@ -250,18 +328,11 @@ export default function DateTimePickerField({
           />
         </>
       ) : Platform.OS === 'web' ? (
-        /* ── Date on web: native calendar ── */
+        /* ── Date on web ── */
         <WebDatePicker value={value} onChange={onChange} placeholder={placeholder} />
       ) : (
-        /* ── Date on native: display only ── */
-        <View style={fStyles.container}>
-          <View style={fStyles.inner}>
-            <Text style={display ? fStyles.valueText : fStyles.placeholderText}>
-              {display || placeholder || 'Select date'}
-            </Text>
-            <MaterialCommunityIcons name="calendar-month" size={20} color={COLORS.textMuted} />
-          </View>
-        </View>
+        /* ── Date on Android / iOS ── */
+        <NativeDatePicker value={value} onChange={onChange} placeholder={placeholder} />
       )}
     </View>
   );
@@ -291,56 +362,79 @@ const fStyles = StyleSheet.create({
 });
 
 // ── Time modal styles ─────────────────────────────────────────────────────────
+const COL_W = Math.min(80, (SCREEN_W - 100) / 3); // responsive column width
+
 const tStyles = StyleSheet.create({
   overlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.78)',
-    justifyContent: 'center', alignItems: 'center', padding: SPACING.l,
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.82)',
+    justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: COLORS.bgCard, borderRadius: RADIUS.xl,
-    width: '100%', maxWidth: 340, overflow: 'hidden',
-    borderWidth: 1, borderColor: COLORS.indigo + '44',
+    backgroundColor: COLORS.bgCard,
+    borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl,
+    borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
+    borderColor: COLORS.indigo + '44',
+    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
   },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.s,
     paddingHorizontal: SPACING.l, paddingVertical: SPACING.m,
+    borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl,
+    overflow: 'hidden',
   },
   headerTitle: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  previewWrap: { alignItems: 'center', paddingVertical: SPACING.m },
   preview: {
-    fontSize: 36, fontWeight: '900', color: COLORS.textPrimary,
-    textAlign: 'center', paddingVertical: SPACING.m, letterSpacing: -1,
+    fontSize: 40, fontWeight: '900', color: '#FFFFFF',
+    letterSpacing: -1,
   },
+  previewAmpm: { fontSize: 24, fontWeight: '700', color: COLORS.indigoLight },
   colLabels: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
     paddingHorizontal: SPACING.l, paddingBottom: SPACING.s,
   },
   colLabel: {
-    fontSize: 11, fontWeight: '700', color: COLORS.textMuted,
-    letterSpacing: 0.8, textTransform: 'uppercase', textAlign: 'center',
+    width: COL_W,
+    fontSize: 11, fontWeight: '800', color: COLORS.textSecond,
+    letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center',
   },
   cols: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start',
-    paddingHorizontal: SPACING.l, paddingBottom: SPACING.m,
+    paddingHorizontal: SPACING.l, paddingBottom: SPACING.s,
+    height: 260,
   },
-  colSep: { width: 1, minHeight: 240, backgroundColor: COLORS.border, marginHorizontal: 6 },
+  colScroll: {
+    width: COL_W,
+    height: 260,
+  },
+  colSep: {
+    width: 1, height: 260, backgroundColor: COLORS.border, marginHorizontal: 8,
+  },
   colItem: {
-    paddingVertical: 10, paddingHorizontal: 6,
-    marginVertical: 2, borderRadius: RADIUS.m, alignItems: 'center', overflow: 'hidden',
+    height: 48, // fixed height for every row — no clipping
+    justifyContent: 'center', alignItems: 'center',
+    borderRadius: RADIUS.m, marginVertical: 2, overflow: 'hidden',
+    paddingHorizontal: 4,
   },
-  colItemActive:  { borderWidth: 1, borderColor: COLORS.indigo + '55' },
-  colText:        { fontSize: 18, color: COLORS.textMuted, fontWeight: '500' },
-  colTextActive:  { color: COLORS.indigoLight, fontWeight: '800', fontSize: 20 },
+  colItemActive: { borderWidth: 1.5, borderColor: COLORS.indigo + '88' },
+  colText: {
+    fontSize: 20, color: '#8899BB', fontWeight: '600', textAlign: 'center',
+  },
+  colTextActive: {
+    color: '#FFFFFF', fontWeight: '900', fontSize: 22,
+  },
   actions: {
     flexDirection: 'row', gap: SPACING.m,
-    padding: SPACING.l, borderTopWidth: 1, borderTopColor: COLORS.border,
+    paddingHorizontal: SPACING.l, paddingVertical: SPACING.m,
+    borderTopWidth: 1, borderTopColor: COLORS.border,
   },
   cancelBtn: {
-    flex: 1, paddingVertical: 13, borderRadius: RADIUS.m,
+    flex: 1, paddingVertical: 14, borderRadius: RADIUS.m,
     backgroundColor: COLORS.bgElevated, borderWidth: 1, borderColor: COLORS.border,
     alignItems: 'center',
   },
   cancelText:  { color: COLORS.textSecond, fontSize: 15, fontWeight: '700' },
   confirmWrap: { flex: 1, borderRadius: RADIUS.m, overflow: 'hidden' },
-  confirmGrad: { paddingVertical: 13, alignItems: 'center' },
+  confirmGrad: { paddingVertical: 14, alignItems: 'center' },
   confirmText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 });
