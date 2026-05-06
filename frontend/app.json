@@ -29,11 +29,13 @@
       "package": "com.clubsphere.app",
       "versionCode": 2,
       "permissions": [
-        "INTERNET",
-        "ACCESS_NETWORK_STATE",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -42,7 +44,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "ad440a75-a46c-4ed5-8cf8-65ad3102a5ea"
+        "projectId": "d764246b-e19c-489b-ade4-fc41a47f12cd"
       },
       "apiBaseUrl": "https://clubsphere-3l9t.onrender.com"
     },
