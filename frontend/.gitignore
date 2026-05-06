@@ -1,4 +1,6 @@
 .vercel
-frontend/dist
-node_modules
+dist/
+web-build/
+.expo/
+node_modules/
 .env
