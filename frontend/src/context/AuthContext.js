@@ -17,33 +17,10 @@ export const AuthProvider = ({ children }) => {
           AsyncStorage.getItem('token'),
         ]);
 
-        if (storedToken) {
+        if (storedToken && storedUser) {
           setAuthToken(storedToken);
-          // Verify token with backend
-          try {
-            const response = await api.get('/api/auth/me');
-            const payload = response?.data?.data;
-            if (payload) {
-              const backendRole = payload.role;
-              const uiRole = ['SuperAdmin', 'ClubAdmin', 'admin'].includes(backendRole) ? 'admin' : 'student';
-              const nextUser = { 
-                id: payload.id, 
-                name: payload.name, 
-                email: payload.email, 
-                role: uiRole, 
-                backendRole,
-                xp: parseInt(payload.xp || 0),
-                level: parseInt(payload.level || 1)
-              };
-              setUser(nextUser);
-              await AsyncStorage.setItem('user', JSON.stringify(nextUser));
-            } else {
-              await logout();
-            }
-          } catch (error) {
-            console.error('Session verification failed, logging out...', error.message);
-            await logout();
-          }
+          // 🚨 DEMO MODE: Trust local storage completely. No backend validation.
+          setUser(JSON.parse(storedUser));
         } else {
           setUser(null);
         }
@@ -57,22 +34,25 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
-  const login = async (email, password, roleHint = 'student') => {
+  const login = async (email, password) => {
     try {
-      const response = await api.post('/api/auth/login', { email, password });
-
-      // Backend shape: { success, message, data: { id, name, email, role, token } }
-      const payload = response?.data?.data;
-      const token = payload?.token;
-      const backendRole = payload?.role;
-      const uiRole = ['SuperAdmin', 'ClubAdmin', 'admin'].includes(backendRole) ? 'admin' : 'student';
-      const nextUser = payload
-        ? { id: payload.id, name: payload.name, email: payload.email, role: uiRole, backendRole }
-        : null;
-
-      if (!token || !nextUser) {
-        throw new Error('Invalid server response');
-      }
+      // 🚨 DEMO MODE BYPASS 🚨
+      // Instantly succeed with mocked data but use REAL tokens to keep backend CRUD working
+      const isAdmin = email.toLowerCase().includes('admin');
+      
+      const token = isAdmin 
+        ? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJhZG1pbkBjYW1wdXMuZWR1Iiwicm9sZSI6IlN1cGVyQWRtaW4iLCJpYXQiOjE3NzgwNTc1NjQsImV4cCI6MTc3ODY2MjM2NH0.AZmghdhZdMJv_VlDOHCqFCAdWxdiKWZMF7nq1IvvtvU"
+        : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiZW1haWwiOiJzdHVkZW50QGNhbXB1cy5lZHUiLCJyb2xlIjoiTWVtYmVyIiwiaWF0IjoxNzc4MDU3NTY0LCJleHAiOjE3Nzg2NjIzNjR9.cV0p8fqYuycOdzUhbWGALto2SbYT-whDPDZTy6y0WOg";
+      
+      const nextUser = {
+        id: isAdmin ? 1 : 2,
+        name: email.split('@')[0] || (isAdmin ? 'Admin User' : 'Student User'),
+        email: email,
+        role: isAdmin ? 'admin' : 'student',
+        backendRole: isAdmin ? 'SuperAdmin' : 'Member',
+        xp: 0,
+        level: 1
+      };
 
       await AsyncStorage.setItem('user', JSON.stringify(nextUser));
       await AsyncStorage.setItem('token', token);
@@ -81,47 +61,28 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (e) {
-      // TEMP DEMO AUTH BYPASS - remove after OJT demo
-      console.log('Login API failed, using fallback demo bypass. Error:', e.message);
-      const isDemoAdmin = roleHint === 'admin' || email.toLowerCase().includes('admin');
-      const uiRole = isDemoAdmin ? 'admin' : 'student';
-      const backendRole = isDemoAdmin ? 'SuperAdmin' : 'Member';
-      const nextUser = {
-        id: 'demo-user-' + Math.floor(Math.random() * 10000),
-        name: isDemoAdmin ? 'Demo Admin' : 'Demo Student',
-        email: email || 'demo@campus.edu',
-        role: uiRole,
-        backendRole: backendRole,
-        xp: 0,
-        level: 1
-      };
-      const token = 'demo-token-bypass-' + Date.now();
-      
-      await AsyncStorage.setItem('user', JSON.stringify(nextUser));
-      await AsyncStorage.setItem('token', token);
-      setAuthToken(token);
-      setUser(nextUser);
-      
-      return { success: true };
+      return { success: false, message: 'Demo Login failed' };
     }
   };
 
   const signup = async (name, email, password, role) => {
     try {
-      // Backend endpoint is /api/auth/register
-      const response = await api.post('/api/auth/register', { name, email, password, role });
-
-      const payload = response?.data?.data;
-      const token = payload?.token;
-      const backendRole = payload?.role;
-      const uiRole = ['SuperAdmin', 'ClubAdmin', 'admin'].includes(backendRole) ? 'admin' : 'student';
-      const nextUser = payload
-        ? { id: payload.id, name: payload.name, email: payload.email, role: uiRole, backendRole }
-        : null;
-
-      if (!token || !nextUser) {
-        throw new Error('Invalid server response');
-      }
+      // 🚨 DEMO MODE BYPASS 🚨
+      const isAdmin = role === 'admin' || email.toLowerCase().includes('admin');
+      
+      const token = isAdmin 
+        ? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJhZG1pbkBjYW1wdXMuZWR1Iiwicm9sZSI6IlN1cGVyQWRtaW4iLCJpYXQiOjE3NzgwNTc1NjQsImV4cCI6MTc3ODY2MjM2NH0.AZmghdhZdMJv_VlDOHCqFCAdWxdiKWZMF7nq1IvvtvU"
+        : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiZW1haWwiOiJzdHVkZW50QGNhbXB1cy5lZHUiLCJyb2xlIjoiTWVtYmVyIiwiaWF0IjoxNzc4MDU3NTY0LCJleHAiOjE3Nzg2NjIzNjR9.cV0p8fqYuycOdzUhbWGALto2SbYT-whDPDZTy6y0WOg";
+      
+      const nextUser = {
+        id: isAdmin ? 1 : 2,
+        name: name || email.split('@')[0],
+        email: email,
+        role: isAdmin ? 'admin' : 'student',
+        backendRole: isAdmin ? 'SuperAdmin' : 'Member',
+        xp: 0,
+        level: 1
+      };
 
       await AsyncStorage.setItem('user', JSON.stringify(nextUser));
       await AsyncStorage.setItem('token', token);
@@ -130,28 +91,7 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (e) {
-      // TEMP DEMO AUTH BYPASS - remove after OJT demo
-      console.log('Signup API failed, using fallback demo bypass. Error:', e.message);
-      const isDemoAdmin = role === 'admin' || email.toLowerCase().includes('admin');
-      const uiRole = isDemoAdmin ? 'admin' : 'student';
-      const backendRole = isDemoAdmin ? 'SuperAdmin' : 'Member';
-      const nextUser = {
-        id: 'demo-user-' + Math.floor(Math.random() * 10000),
-        name: name || (isDemoAdmin ? 'Demo Admin' : 'Demo Student'),
-        email: email || 'demo@campus.edu',
-        role: uiRole,
-        backendRole: backendRole,
-        xp: 0,
-        level: 1
-      };
-      const token = 'demo-token-bypass-' + Date.now();
-      
-      await AsyncStorage.setItem('user', JSON.stringify(nextUser));
-      await AsyncStorage.setItem('token', token);
-      setAuthToken(token);
-      setUser(nextUser);
-      
-      return { success: true };
+      return { success: false, message: 'Demo Signup failed' };
     }
   };
 
@@ -167,44 +107,27 @@ export const AuthProvider = ({ children }) => {
   };
 
   const refreshUser = async () => {
-    try {
-      const response = await api.get('/api/auth/me');
-      const payload = response?.data?.data;
-      if (payload) {
-        const backendRole = payload.role;
-        const uiRole = ['SuperAdmin', 'ClubAdmin', 'admin'].includes(backendRole) ? 'admin' : 'student';
-        const nextUser = { 
-          id: payload.id, 
-          name: payload.name, 
-          email: payload.email, 
-          role: uiRole, 
-          backendRole,
-          xp: parseInt(payload.xp || 0),
-          level: parseInt(payload.level || 1)
-        };
-        await AsyncStorage.setItem('user', JSON.stringify(nextUser));
-        setUser(nextUser);
-      }
-    } catch (e) {
-      console.error('Failed to refresh user', e);
-    }
+    // 🚨 DEMO MODE BYPASS: Do nothing on refresh so it doesn't log the user out 
+    // if the backend is slow or fails.
+    console.log('Demo mode: Skipping user refresh from backend.');
   };
 
   const loginWithGoogle = async (idToken) => {
     try {
-      const response = await api.post('/api/auth/google', { idToken });
-
-      const payload = response?.data?.data;
-      const token = payload?.token;
-      const backendRole = payload?.role;
-      const uiRole = ['SuperAdmin', 'ClubAdmin', 'admin'].includes(backendRole) ? 'admin' : 'student';
-      const nextUser = payload
-        ? { id: payload.id, name: payload.name, email: payload.email, role: uiRole, backendRole, avatar_url: payload.avatar_url }
-        : null;
-
-      if (!token || !nextUser) {
-        return { success: false, message: 'Google login failed: invalid server response' };
-      }
+      // 🚨 DEMO MODE BYPASS 🚨
+      const isAdmin = false; // Google login defaults to student for demo
+      
+      const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiZW1haWwiOiJzdHVkZW50QGNhbXB1cy5lZHUiLCJyb2xlIjoiTWVtYmVyIiwiaWF0IjoxNzc4MDU3NTY0LCJleHAiOjE3Nzg2NjIzNjR9.cV0p8fqYuycOdzUhbWGALto2SbYT-whDPDZTy6y0WOg";
+      
+      const nextUser = {
+        id: 2,
+        name: 'Google User',
+        email: 'google@campus.edu',
+        role: 'student',
+        backendRole: 'Member',
+        xp: 0,
+        level: 1
+      };
 
       await AsyncStorage.setItem('user', JSON.stringify(nextUser));
       await AsyncStorage.setItem('token', token);
@@ -213,7 +136,7 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (e) {
-      return { success: false, message: e.response?.data?.message || 'Google login failed' };
+      return { success: false, message: 'Demo Google login failed' };
     }
   };
 
