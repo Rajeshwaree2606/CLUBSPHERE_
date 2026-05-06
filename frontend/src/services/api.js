@@ -4,13 +4,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { initialClubs, initialEvents, initialNotifications, initialBudgets, initialCertificates } from './mockData';
 
-// Real backend base URL — hardcoded for production APK reliability
-// EXPO_PUBLIC_API_BASE_URL can override for local dev
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "https://clubsphere-3l9t.onrender.com";
+// Real backend base URL — explicitly hardcoded to prevent bad Vercel environment variables from overriding it.
+export const API_BASE_URL = "https://clubsphere-3l9t.onrender.com";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 60000, // 60 seconds to allow Render free tier to wake up without throwing a Network Error
   headers: {
     'Content-Type': 'application/json',
   },
