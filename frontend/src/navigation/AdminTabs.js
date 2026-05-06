@@ -29,10 +29,9 @@ function AdminEventsStack() {
 const TABS = [
   { name: 'Dashboard', component: DashboardScreen,     icon: 'view-dashboard', label: 'Home'   },
   { name: 'Clubs',     component: ClubsScreen,         icon: 'account-group',  label: 'Clubs'  },
-  { name: 'Events',    component: AdminEventsStack,     icon: 'calendar-edit',  label: 'Events' },
-  { name: 'Budget',    component: BudgetScreen,         icon: 'chart-finance',  label: 'Budget' },
-  { name: 'Alerts',    component: AnnouncementsScreen,  icon: 'bullhorn',       label: 'Alerts' },
-  { name: 'Profile',   component: ProfileScreen,        icon: 'account-circle', label: 'Me'     },
+  { name: 'Events',    component: AdminEventsStack,    icon: 'calendar-edit',  label: 'Events' },
+  { name: 'Budget',    component: BudgetScreen,        icon: 'chart-finance',  label: 'Budget & Att.' },
+  { name: 'Profile',   component: ProfileScreen,       icon: 'account-circle', label: 'Me'     },
 ];
 
 export default function AdminTabs() {

@@ -34,11 +34,11 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, roleHint = 'student') => {
     try {
-      // 🚨 DEMO MODE BYPASS 🚨
+      // 🚨 TEMP DEMO ROLE AUTH - remove after OJT demo 🚨
       // Instantly succeed with mocked data but use REAL tokens to keep backend CRUD working
-      const isAdmin = email.toLowerCase().includes('admin');
+      const isAdmin = roleHint === 'admin';
       
       const token = isAdmin 
         ? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJhZG1pbkBjYW1wdXMuZWR1Iiwicm9sZSI6IlN1cGVyQWRtaW4iLCJpYXQiOjE3NzgwNTc1NjQsImV4cCI6MTc3ODY2MjM2NH0.AZmghdhZdMJv_VlDOHCqFCAdWxdiKWZMF7nq1IvvtvU"
@@ -65,10 +65,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signup = async (name, email, password, role) => {
+  const signup = async (name, email, password, roleHint = 'student') => {
     try {
-      // 🚨 DEMO MODE BYPASS 🚨
-      const isAdmin = role === 'admin' || email.toLowerCase().includes('admin');
+      // 🚨 TEMP DEMO ROLE AUTH - remove after OJT demo 🚨
+      const isAdmin = roleHint === 'admin';
       
       const token = isAdmin 
         ? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJhZG1pbkBjYW1wdXMuZWR1Iiwicm9sZSI6IlN1cGVyQWRtaW4iLCJpYXQiOjE3NzgwNTc1NjQsImV4cCI6MTc3ODY2MjM2NH0.AZmghdhZdMJv_VlDOHCqFCAdWxdiKWZMF7nq1IvvtvU"
