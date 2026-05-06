@@ -33,7 +33,7 @@ export default function StudentLoginScreen({ navigation }) {
   const handleLogin = async () => {
     if (!email || !password) { setError('Please fill in all fields.'); return; }
     setIsLoading(true); setError(null);
-    const result = await login(email, password);
+    const result = await login(email, password, 'student');
     setIsLoading(false);
     if (!result.success) setError(result.message || 'Login failed. Check your credentials.');
   };

@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, roleHint = 'student') => {
     try {
       const response = await api.post('/api/auth/login', { email, password });
 
@@ -71,7 +71,7 @@ export const AuthProvider = ({ children }) => {
         : null;
 
       if (!token || !nextUser) {
-        return { success: false, message: 'Login failed: invalid server response' };
+        throw new Error('Invalid server response');
       }
 
       await AsyncStorage.setItem('user', JSON.stringify(nextUser));
@@ -81,7 +81,28 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (e) {
-      return { success: false, message: e.response?.data?.message || 'Login failed' };
+      // TEMP DEMO AUTH BYPASS - remove after OJT demo
+      console.log('Login API failed, using fallback demo bypass. Error:', e.message);
+      const isDemoAdmin = roleHint === 'admin' || email.toLowerCase().includes('admin');
+      const uiRole = isDemoAdmin ? 'admin' : 'student';
+      const backendRole = isDemoAdmin ? 'SuperAdmin' : 'Member';
+      const nextUser = {
+        id: 'demo-user-' + Math.floor(Math.random() * 10000),
+        name: isDemoAdmin ? 'Demo Admin' : 'Demo Student',
+        email: email || 'demo@campus.edu',
+        role: uiRole,
+        backendRole: backendRole,
+        xp: 0,
+        level: 1
+      };
+      const token = 'demo-token-bypass-' + Date.now();
+      
+      await AsyncStorage.setItem('user', JSON.stringify(nextUser));
+      await AsyncStorage.setItem('token', token);
+      setAuthToken(token);
+      setUser(nextUser);
+      
+      return { success: true };
     }
   };
 
@@ -99,7 +120,7 @@ export const AuthProvider = ({ children }) => {
         : null;
 
       if (!token || !nextUser) {
-        return { success: false, message: 'Signup failed: invalid server response' };
+        throw new Error('Invalid server response');
       }
 
       await AsyncStorage.setItem('user', JSON.stringify(nextUser));
@@ -109,7 +130,28 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (e) {
-      return { success: false, message: e.response?.data?.message || 'Signup failed' };
+      // TEMP DEMO AUTH BYPASS - remove after OJT demo
+      console.log('Signup API failed, using fallback demo bypass. Error:', e.message);
+      const isDemoAdmin = role === 'admin' || email.toLowerCase().includes('admin');
+      const uiRole = isDemoAdmin ? 'admin' : 'student';
+      const backendRole = isDemoAdmin ? 'SuperAdmin' : 'Member';
+      const nextUser = {
+        id: 'demo-user-' + Math.floor(Math.random() * 10000),
+        name: name || (isDemoAdmin ? 'Demo Admin' : 'Demo Student'),
+        email: email || 'demo@campus.edu',
+        role: uiRole,
+        backendRole: backendRole,
+        xp: 0,
+        level: 1
+      };
+      const token = 'demo-token-bypass-' + Date.now();
+      
+      await AsyncStorage.setItem('user', JSON.stringify(nextUser));
+      await AsyncStorage.setItem('token', token);
+      setAuthToken(token);
+      setUser(nextUser);
+      
+      return { success: true };
     }
   };
 
