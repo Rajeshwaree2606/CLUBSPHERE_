@@ -3,6 +3,7 @@
 // --------------------------------------------------
 
 const { pool } = require("../config/db");
+const jwt = require("jsonwebtoken");
 
 // Valid attendance statuses
 const VALID_STATUSES = ["Present", "Absent", "Late"];
@@ -132,7 +133,6 @@ const getAttendanceByEvent = async (req, res) => {
     }
 
     // Return the roster of registered users, with attendance status if marked.
-    // If not marked yet, status is returned as "pending" (not stored in DB).
     const result = await pool.query(
       `SELECT
          u.id AS user_id,
@@ -197,81 +197,118 @@ const getMyAttendance = async (req, res) => {
 };
 
 // ========================
-//  SCAN QR — POST /api/attendance/scan
-//  Any authenticated user (student)
+//  GENERATE QR — POST /api/attendance/generate-qr/:eventId
+//  SuperAdmin & ClubAdmin only
+//  Generates a JWT-based QR token (5-minute expiry)
 // ========================
-const scanQRAttendance = async (req, res) => {
+const generateQR = async (req, res) => {
   try {
-    const { qr_token } = req.body;
-    const user_id = req.user.id;
+    const { eventId } = req.params;
 
-    if (!qr_token) {
-      return res.status(400).json({ success: false, message: 'QR token is required' });
+    // Check if event exists
+    const eventCheck = await pool.query("SELECT id FROM events WHERE id = $1", [eventId]);
+    if (eventCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Event not found" });
     }
 
-    // Find event by qr_token
-    const eventResult = await pool.query(
-      'SELECT id, title, venue, event_date FROM events WHERE qr_token = $1',
-      [qr_token]
+    // Generate JWT (5 minutes validity)
+    const token = jwt.sign(
+      { eventId },
+      process.env.JWT_SECRET,
+      { expiresIn: "5m" }
     );
 
-    if (eventResult.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Invalid or expired QR code' });
+    return res.status(200).json({
+      success: true,
+      message: "QR code generated successfully",
+      token
+    });
+  } catch (error) {
+    console.error("❌ Generate QR Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while generating QR code"
+    });
+  }
+};
+
+// ========================
+//  SCAN QR (JWT-based) — POST /api/attendance/scan
+//  Any authenticated user
+// ========================
+const scanQR = async (req, res) => {
+  try {
+    // Accept both "token" and "qr_token" for compatibility
+    const token = req.body.token || req.body.qr_token;
+    const userId = req.user.id;
+
+    if (!token) {
+      return res.status(400).json({ success: false, message: "QR token is required" });
     }
 
-    const event = eventResult.rows[0];
-
-    // Check for duplicate scan
-    const existing = await pool.query(
-      'SELECT id FROM attendance WHERE event_id = $1 AND user_id = $2',
-      [event.id, user_id]
-    );
-
-    if (existing.rows.length > 0) {
-      return res.status(409).json({
-        success: false,
-        message: 'Attendance already marked for this event',
-        data: { event_title: event.title, already_marked: true },
-      });
+    // First try JWT verification (our generate-qr flow)
+    let eventId;
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      eventId = decoded.eventId;
+    } catch (err) {
+      // Fallback: try DB-based qr_token lookup (teammate's flow)
+      const eventResult = await pool.query(
+        'SELECT id, title, venue, event_date FROM events WHERE qr_token = $1',
+        [token]
+      );
+      if (eventResult.rows.length === 0) {
+        return res.status(400).json({ success: false, message: "Invalid or expired QR code" });
+      }
+      eventId = eventResult.rows[0].id;
     }
 
-    // Auto-register if not already
+    // Ensure the user is registered for the event
     await pool.query(
       `INSERT INTO event_registrations (event_id, user_id)
        VALUES ($1, $2)
        ON CONFLICT (event_id, user_id) DO NOTHING`,
-      [event.id, user_id]
+      [eventId, userId]
     );
 
-    // Mark attendance as Present
+    // Check if attendance already marked
+    const existing = await pool.query(
+      "SELECT id FROM attendance WHERE event_id = $1 AND user_id = $2",
+      [eventId, userId]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(200).json({
+        success: true,
+        message: "Attendance already marked",
+      });
+    }
+
+    // Insert new attendance record
     const result = await pool.query(
       `INSERT INTO attendance (event_id, user_id, status)
        VALUES ($1, $2, 'Present')
        RETURNING *`,
-      [event.id, user_id]
+      [eventId, userId]
     );
 
-    // Award XP for attending
-    await pool.query(
-      'UPDATE users SET xp = xp + 50 WHERE id = $1',
-      [user_id]
-    );
+    // Award XP for attending (if xp column exists)
+    try {
+      await pool.query('UPDATE users SET xp = xp + 50 WHERE id = $1', [userId]);
+    } catch (_) { /* xp column may not exist */ }
 
     return res.status(201).json({
       success: true,
-      message: 'Attendance marked successfully',
-      data: {
-        attendance: result.rows[0],
-        event_title: event.title,
-        event_venue: event.venue,
-        event_date: event.event_date,
-        xp_earned: 50,
-      },
+      message: "Attendance marked successfully via QR",
+      data: result.rows[0],
     });
   } catch (error) {
-    console.error('❌ Scan QR Attendance Error:', error.message);
-    return res.status(500).json({ success: false, message: 'Server error while scanning QR' });
+    console.error("❌ Scan QR Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while scanning QR code"
+    });
   }
 };
 
-module.exports = { markAttendance, getAttendanceByEvent, getMyAttendance, scanQRAttendance };
+module.exports = { markAttendance, getAttendanceByEvent, getMyAttendance, generateQR, scanQR };
