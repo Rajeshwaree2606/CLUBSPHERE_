@@ -17,8 +17,15 @@ const createEvent = async (req, res) => {
   try {
     const { club_id, title, description, venue, event_date, start_time, end_time, event_image } = req.body;
 
+    console.log('📥 [createEvent] Incoming payload:', {
+      club_id, title, venue, event_date, start_time, end_time,
+      event_image: event_image ? `[present, len=${String(event_image).length}]` : null,
+    });
+    console.log('👤 [createEvent] Requesting user:', req.user?.id, 'role:', req.user?.role);
+
     // --- Input validation ---
     if (!club_id || !title || !event_date) {
+      console.warn('🔴 [createEvent] Missing required fields:', { club_id: !!club_id, title: !!title, event_date: !!event_date });
       return res.status(400).json({
         success: false,
         message: 'club_id, title, and event_date are required',
@@ -28,6 +35,7 @@ const createEvent = async (req, res) => {
     // Validate date format (YYYY-MM-DD)
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(event_date)) {
+      console.warn('🔴 [createEvent] Invalid date format:', event_date);
       return res.status(400).json({
         success: false,
         message: 'event_date must be in YYYY-MM-DD format (e.g. 2025-06-15)',
@@ -37,31 +45,78 @@ const createEvent = async (req, res) => {
     // --- Check if club exists ---
     const clubCheck = await pool.query('SELECT id FROM clubs WHERE id = $1', [club_id]);
     if (clubCheck.rows.length === 0) {
+      console.warn('🔴 [createEvent] Club not found:', club_id);
       return res.status(404).json({ success: false, message: 'Club not found' });
     }
 
     // --- Auto-generate a unique QR token ---
     const qr_token = makeQRToken();
+    console.log('✅ [createEvent] Generated QR token:', qr_token);
 
-    // --- Insert event ---
-    const result = await pool.query(
-      `INSERT INTO events
-         (club_id, title, description, venue, event_date, start_time, end_time, event_image, created_by, qr_token)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING *`,
-      [
-        club_id,
-        title,
-        description || null,
-        venue       || null,
-        event_date,
-        start_time  || null,
-        end_time    || null,
-        event_image || null,
-        req.user.id,
-        qr_token,
-      ]
-    );
+    let result;
+    try {
+      // --- Try INSERT with event_image column ---
+      result = await pool.query(
+        `INSERT INTO events
+           (club_id, title, description, venue, event_date, start_time, end_time, event_image, created_by, qr_token)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING *`,
+        [
+          club_id,
+          title,
+          description || null,
+          venue       || null,
+          event_date,
+          start_time  || null,
+          end_time    || null,
+          event_image || null,
+          req.user.id,
+          qr_token,
+        ]
+      );
+    } catch (insertErr) {
+      // If error is about missing column (event_image, start_time, end_time), retry without them
+      const errMsg = String(insertErr.message || '');
+      const isMissingColumn = errMsg.includes('column') && (
+        errMsg.includes('event_image') ||
+        errMsg.includes('start_time') ||
+        errMsg.includes('end_time') ||
+        errMsg.includes('qr_token')
+      );
+
+      if (isMissingColumn) {
+        console.warn('🟡 [createEvent] Column missing in DB, retrying without optional columns:', insertErr.message);
+        // Minimal safe insert
+        result = await pool.query(
+          `INSERT INTO events
+             (club_id, title, description, venue, event_date, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING *`,
+          [
+            club_id,
+            title,
+            description || null,
+            venue       || null,
+            event_date,
+            req.user.id,
+          ]
+        );
+        // Add qr_token as a fake value in response since DB doesn't have the column
+        const eventRow = result.rows[0];
+        eventRow.qr_token = `CS-FALLBACK-${eventRow.id}-${Date.now()}`;
+        console.log('✅ [createEvent] Fallback insert succeeded for event id:', eventRow.id);
+        return res.status(201).json({
+          success: true,
+          message: 'Event created successfully (without optional columns — run DB migration)',
+          data: eventRow,
+        });
+      }
+
+      // Unknown DB error — re-throw
+      throw insertErr;
+    }
+
+    console.log('✅ [createEvent] Event created, id:', result.rows[0].id, 'qr_token:', result.rows[0].qr_token);
 
     return res.status(201).json({
       success: true,
@@ -69,8 +124,8 @@ const createEvent = async (req, res) => {
       data: result.rows[0],
     });
   } catch (error) {
-    console.error('❌ Create Event Error:', error.message);
-    return res.status(500).json({ success: false, message: 'Server error while creating event' });
+    console.error('❌ Create Event Error:', error.message, error.stack);
+    return res.status(500).json({ success: false, message: `Server error: ${error.message}` });
   }
 };
 

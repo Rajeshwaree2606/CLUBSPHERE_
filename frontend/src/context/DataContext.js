@@ -251,26 +251,48 @@ export const DataProvider = ({ children }) => {
         event_date:  eventData?.event_date ?? eventData?.date,
         start_time:  eventData?.start_time || null,
         end_time:    eventData?.end_time   || null,
-        event_image: eventData?.event_image || null,
+        // event_image excluded from create to avoid 413 Payload Too Large on Render free tier
+        // It can be added via a separate PATCH /api/events/:id endpoint after creation
       };
 
-      console.log('🗄️ [DataContext] createEvent → POST /api/events', JSON.stringify({
-        ...requestPayload,
-        event_image: requestPayload.event_image ? `[base64 len: ${requestPayload.event_image?.length}]` : null,
-      }));
+      console.log('🗄️ [DataContext] createEvent → POST /api/events', JSON.stringify(requestPayload));
 
       const res = await api.post('/api/events', requestPayload);
 
-      console.log('🗄️ [DataContext] createEvent ← response:', res?.data);
+      console.log('🗄️ [DataContext] createEvent ← response status:', res.status, 'data:', JSON.stringify(res?.data));
 
-      const created = mapEvent(unwrap(res));
-      if (!created) {
-        console.warn('🗄️ [DataContext] mapEvent returned null, raw:', unwrap(res));
-        return { success: false, message: 'Invalid server response' };
+      const rawData = unwrap(res);
+      const created = mapEvent(rawData);
+
+      if (created) {
+        setEvents((prev) => [created, ...prev]);
+      } else if (rawData?.id) {
+        // Backend returned event but mapEvent couldn't fully map it — use raw data
+        console.warn('🗄️ [DataContext] mapEvent returned null, using raw data directly');
+        const fallback = {
+          id:          String(rawData.id),
+          clubId:      rawData.club_id != null ? String(rawData.club_id) : undefined,
+          title:       rawData.title,
+          description: rawData.description,
+          venue:       rawData.venue || 'TBA',
+          date:        rawData.event_date ? String(rawData.event_date).split('T')[0] : '',
+          time:        'TBD',
+          maxParticipants: 100,
+          joined:      false,
+          qr_token:    rawData.qr_token || null,
+          start_time:  rawData.start_time || null,
+          end_time:    rawData.end_time || null,
+          event_image: null,
+        };
+        setEvents((prev) => [fallback, ...prev]);
+        return { success: true, data: rawData };
+      } else {
+        console.warn('🗄️ [DataContext] mapEvent returned null AND no id in raw data:', rawData);
+        // Event may have been created but mapping failed — still report success
+        return { success: false, message: 'Event may have been created but server response was unexpected. Please refresh.' };
       }
 
-      setEvents((prev) => [created, ...prev]);
-      return { success: true, data: unwrap(res) };
+      return { success: true, data: rawData };
     } catch (e) {
       const msg = e.response?.data?.message || e.message || 'Failed to create event';
       console.error('🗄️ [DataContext] createEvent error:', {

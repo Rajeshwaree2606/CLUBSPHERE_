@@ -57,8 +57,8 @@ app.options("*", cors(corsOptions)); // Handle preflight across all routes
 
 app.use(helmet());
 app.use(morgan("dev"));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ---- Root Route ----
 app.get("/", (req, res) => {
@@ -97,7 +97,14 @@ app.use((req, res) => {
 
 // ---- Global Error Handler ----
 app.use((err, req, res, next) => {
-  console.error("❌ Error:", err.message);
+  console.error("❌ Global Error:", err.type || err.name, err.message);
+  // Handle payload too large
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({
+      success: false,
+      message: 'Request body too large. Try without an image or use a smaller image.',
+    });
+  }
   res.status(err.status || 500).json({
     success: false,
     message: err.message || "Internal Server Error",

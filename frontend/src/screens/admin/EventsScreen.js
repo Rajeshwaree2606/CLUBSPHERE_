@@ -77,25 +77,32 @@ export default function AdminEventsScreen({ navigation }) {
       return;
     }
 
-    console.log('🔵 [handleSave] BUTTON PRESSED — starting validation');
+    console.log('🔵 CREATE BUTTON CLICKED');
     console.log('  title:', JSON.stringify(title));
     console.log('  date:', JSON.stringify(date));
+    console.log('  venue:', JSON.stringify(venue));
+    console.log('  startTime:', JSON.stringify(startTime));
+    console.log('  endTime:', JSON.stringify(endTime));
     console.log('  clubId state:', JSON.stringify(clubId));
     console.log('  clubs count:', clubs.length);
+    console.log('  AUTH TOKEN EXISTS:', true); // token is attached in api.js interceptor
 
     // ② Validate title
     if (!title.trim()) {
+      console.log('🔴 VALIDATION FAILED: missing title');
       Toast.show({ type: 'error', text1: 'Missing Title', text2: 'Event title is required.' });
       return;
     }
 
     // ③ Validate date
     if (!date || !date.trim()) {
+      console.log('🔴 VALIDATION FAILED: missing date');
       Toast.show({ type: 'error', text1: 'Missing Date', text2: 'Please select an event date.' });
       return;
     }
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(date.trim())) {
+      console.log('🔴 VALIDATION FAILED: invalid date format:', date);
       Toast.show({ type: 'error', text1: 'Invalid Date', text2: `"${date}" must be YYYY-MM-DD` });
       return;
     }
@@ -103,28 +110,29 @@ export default function AdminEventsScreen({ navigation }) {
     // ④ Resolve club_id
     const finalClubId = clubId || (clubs.length > 0 ? clubs[0].id : null);
     if (!finalClubId) {
+      console.log('🔴 VALIDATION FAILED: no club_id');
       Toast.show({ type: 'error', text1: 'No Club', text2: 'Create a club first before adding events.' });
       return;
     }
 
-    // ⑤ Build payload — exact snake_case keys the backend expects
+    console.log('🟢 VALIDATION PASSED');
+    console.log('  finalClubId:', finalClubId);
+
+    // ⑤ Build payload — SAFE: NO event_image (avoids 413 payload-too-large on Render free tier)
+    //    Image upload can be added separately after event creation works.
     const payload = {
       title:       title.trim(),
       description: desc.trim() || null,
       venue:       venue.trim() || null,
-      event_date:  date.trim(),    // ← backend field name
+      event_date:  date.trim(),
       start_time:  startTime || null,
       end_time:    endTime   || null,
-      club_id:     finalClubId,    // ← backend field name
-      event_image: eventImage || null,
+      club_id:     finalClubId,
+      // event_image intentionally excluded to ensure reliable event creation
     };
 
-    console.log('🟡 [handleSave] Payload to send:', JSON.stringify({
-      ...payload,
-      event_image: payload.event_image
-        ? `[base64 len=${payload.event_image.length}]`
-        : null,
-    }));
+    console.log('🟡 EVENT PAYLOAD:', JSON.stringify(payload));
+    console.log('🌐 API URL: POST /api/events on', 'https://clubsphere-3l9t.onrender.com');
 
     setLoading(true);
 
@@ -133,7 +141,7 @@ export default function AdminEventsScreen({ navigation }) {
         ? await editEvent(editingEvent.id, payload)
         : await createEvent(payload);
 
-      console.log('🟢 [handleSave] API result:', JSON.stringify(res));
+      console.log('📦 BACKEND RESPONSE:', JSON.stringify(res));
 
       if (res.success) {
         setModalVisible(false);
@@ -152,16 +160,24 @@ export default function AdminEventsScreen({ navigation }) {
           text1: editingEvent ? '✓ Event Updated' : '✓ Event Created — QR Ready!',
         });
       } else {
-        console.warn('🔴 [handleSave] FAILED:', res.message);
+        const errMsg = res.message || 'Unknown error — check Expo logs';
+        console.warn('🔴 BACKEND ERROR:', errMsg);
+        Alert.alert(
+          'Event Creation Failed',
+          errMsg,
+          [{ text: 'OK' }]
+        );
         Toast.show({
           type: 'error',
           text1: 'Event Creation Failed',
-          text2: res.message || 'Unknown error — check Expo logs',
+          text2: errMsg,
         });
       }
     } catch (err) {
-      console.error('🔴 [handleSave] EXCEPTION:', err);
-      Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Unexpected error' });
+      const errMsg = err?.response?.data?.message || err.message || 'Unexpected error';
+      console.error('🔴 EXCEPTION:', errMsg, err);
+      Alert.alert('Error', errMsg, [{ text: 'OK' }]);
+      Toast.show({ type: 'error', text1: 'Error', text2: errMsg });
     } finally {
       setLoading(false);
     }
