@@ -182,34 +182,18 @@ const styles = StyleSheet.create({
   // Red vignette edges
   vignetteTop: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 120, zIndex: 1,
-    ...Platform.select({
-      web:     { background: 'radial-gradient(ellipse at top, rgba(220,38,38,0.18) 0%, transparent 70%)' },
-      default: {},
-    }),
     backgroundColor: 'transparent',
   },
   vignetteBottom: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: 120, zIndex: 1,
-    ...Platform.select({
-      web:     { background: 'radial-gradient(ellipse at bottom, rgba(220,38,38,0.15) 0%, transparent 70%)' },
-      default: {},
-    }),
     backgroundColor: 'transparent',
   },
   vignetteLeft: {
     position: 'absolute', top: 0, bottom: 0, left: 0, width: 80, zIndex: 1,
-    ...Platform.select({
-      web:     { background: 'linear-gradient(to right, rgba(220,38,38,0.12), transparent)' },
-      default: {},
-    }),
     backgroundColor: 'transparent',
   },
   vignetteRight: {
     position: 'absolute', top: 0, bottom: 0, right: 0, width: 80, zIndex: 1,
-    ...Platform.select({
-      web:     { background: 'linear-gradient(to left, rgba(220,38,38,0.12), transparent)' },
-      default: {},
-    }),
     backgroundColor: 'transparent',
   },
 

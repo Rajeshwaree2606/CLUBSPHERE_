@@ -1,40 +1,29 @@
-import React, { useContext, useEffect, useState, useRef } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, ActivityIndicator,
-  TouchableOpacity, StatusBar, Modal, Animated,
+  TouchableOpacity, StatusBar, Modal, Platform, Image
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { DataContext } from '../../context/DataContext';
-import { apiPost } from '../../services/api';
 import { COLORS, GRADIENTS, RADIUS, SPACING, SHADOWS } from '../../utils/theme';
 import PremiumCard from '../../components/PremiumCard';
+import GradientButton from '../../components/GradientButton';
+import { apiPost } from '../../services/api';
 
 export default function EventAttendanceScreen({ route, navigation }) {
   const { eventId } = route.params;
   const { events, getAttendance, markAttendance } = useContext(DataContext);
   const [attendees, setAttendees] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [qrModal, setQrModal]     = useState(false);
-  const [qrToken, setQrToken]     = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [qrToken, setQrToken] = useState(null);
   const [qrLoading, setQrLoading] = useState(false);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const event = events.find(e => String(e.id) === String(eventId));
+  const event = events.find(e => e.id === eventId);
 
   useEffect(() => { loadData(); }, []);
-
-  useEffect(() => {
-    if (qrModal) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.06, duration: 700, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1,    duration: 700, useNativeDriver: true }),
-        ])
-      ).start();
-    }
-  }, [qrModal]);
 
   const loadData = async () => {
     setLoading(true);
@@ -44,43 +33,38 @@ export default function EventAttendanceScreen({ route, navigation }) {
   };
 
   const handleMark = async (userId, status) => {
+    // Optimistic update
     setAttendees(prev => prev.map(a => a.userId === userId ? { ...a, status } : a));
     const res = await markAttendance(eventId, userId, status);
     if (res.success) {
       Toast.show({ type: 'success', text1: `Marked ${status === 'present' ? 'Present ✓' : 'Absent'}` });
     } else {
       Toast.show({ type: 'error', text1: 'Failed to update' });
-      loadData();
+      loadData(); // revert
     }
   };
 
   const handleGenerateQR = async () => {
     setQrLoading(true);
-    setQrToken(null);
     try {
-      const res = await apiPost(`/api/events/${eventId}/qr-token`, {});
-      const token = res?.data?.data?.qr_token;
-      if (token) {
-        setQrToken(token);
-        setQrModal(true);
-      } else {
-        Toast.show({ type: 'error', text1: 'Failed to generate QR token' });
+      const res = await apiPost(`/api/attendance/generate-qr/${eventId}`);
+      if (res.data.success) {
+        setQrToken(res.data.token);
+        setQrModalVisible(true);
       }
-    } catch (e) {
-      Toast.show({ type: 'error', text1: e?.response?.data?.message || 'QR generation failed' });
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Failed to generate QR code' });
     } finally {
       setQrLoading(false);
     }
   };
 
-  const presentCount = attendees.filter(a =>
-    a.status === 'present' || a.status === 'Present'
-  ).length;
+  const presentCount = attendees.filter(a => a.status === 'present').length;
   const rate = attendees.length > 0 ? Math.round((presentCount / attendees.length) * 100) : 0;
 
   const renderItem = ({ item }) => {
-    const isPresent = item.status === 'present' || item.status === 'Present';
-    const isAbsent  = item.status === 'absent'  || item.status === 'Absent';
+    const isPresent = item.status === 'present';
+    const isAbsent  = item.status === 'absent';
     return (
       <PremiumCard style={styles.row} variant={isPresent ? 'gold' : 'default'}>
         <View style={styles.rowAvatar}>
@@ -88,12 +72,12 @@ export default function EventAttendanceScreen({ route, navigation }) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.rowName}>{item.name}</Text>
-          <Text style={styles.rowId}>ID: {item.userId || item.user_id}</Text>
+          <Text style={styles.rowId}>ID: {item.userId}</Text>
         </View>
         <View style={styles.rowBtns}>
           <TouchableOpacity
             style={[styles.markBtn, isPresent && styles.markBtnPresent]}
-            onPress={() => handleMark(item.userId || item.user_id, 'present')}
+            onPress={() => handleMark(item.userId, 'present')}
           >
             {isPresent && <LinearGradient colors={GRADIENTS.gold} style={StyleSheet.absoluteFill} borderRadius={RADIUS.m} />}
             <MaterialCommunityIcons name="check" size={16} color={isPresent ? '#000' : COLORS.textMuted} />
@@ -101,7 +85,7 @@ export default function EventAttendanceScreen({ route, navigation }) {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.markBtn, isAbsent && styles.markBtnAbsent]}
-            onPress={() => handleMark(item.userId || item.user_id, 'absent')}
+            onPress={() => handleMark(item.userId, 'absent')}
           >
             {isAbsent && <LinearGradient colors={GRADIENTS.crimson} style={StyleSheet.absoluteFill} borderRadius={RADIUS.m} />}
             <MaterialCommunityIcons name="close" size={16} color={isAbsent ? '#fff' : COLORS.textMuted} />
@@ -125,30 +109,16 @@ export default function EventAttendanceScreen({ route, navigation }) {
           <Text style={styles.headerTitle}>Attendance</Text>
           <Text style={styles.headerSub} numberOfLines={1}>{event?.title || 'Event'}</Text>
         </View>
-        {/* QR Generate Button */}
-        <TouchableOpacity
-          style={styles.qrBtn}
-          onPress={handleGenerateQR}
-          disabled={qrLoading}
-        >
-          {qrLoading
-            ? <ActivityIndicator size="small" color="#fff" />
-            : <>
-                <MaterialCommunityIcons name="qrcode" size={18} color="#fff" />
-                <Text style={styles.qrBtnText}>QR</Text>
-              </>
-          }
-        </TouchableOpacity>
       </View>
 
       {/* Stats */}
       {!loading && (
         <View style={styles.statsRow}>
           {[
-            { label: 'Total',   value: attendees.length,                       color: COLORS.textPrimary },
-            { label: 'Present', value: presentCount,                            color: COLORS.success },
-            { label: 'Absent',  value: attendees.length - presentCount,        color: COLORS.error },
-            { label: 'Rate',    value: `${rate}%`,                              color: COLORS.gold },
+            { label: 'Total',    value: attendees.length, color: COLORS.textPrimary },
+            { label: 'Present',  value: presentCount,     color: COLORS.success },
+            { label: 'Absent',   value: attendees.length - presentCount, color: COLORS.error },
+            { label: 'Rate',     value: `${rate}%`,       color: COLORS.gold },
           ].map(s => (
             <View key={s.label} style={styles.statCard}>
               <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
@@ -158,11 +128,22 @@ export default function EventAttendanceScreen({ route, navigation }) {
         </View>
       )}
 
+      {/* Gold divider */}
       <LinearGradient
         colors={['transparent', COLORS.gold, 'transparent']}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
         style={styles.divider}
       />
+
+      <View style={{ paddingHorizontal: SPACING.l, paddingVertical: SPACING.s }}>
+        <GradientButton
+          title="Generate Attendance QR"
+          icon="qrcode"
+          variant="gold"
+          onPress={handleGenerateQR}
+          loading={qrLoading}
+        />
+      </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -172,7 +153,7 @@ export default function EventAttendanceScreen({ route, navigation }) {
       ) : (
         <FlatList
           data={attendees}
-          keyExtractor={item => String(item.userId || item.user_id)}
+          keyExtractor={item => item.userId}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
@@ -181,37 +162,26 @@ export default function EventAttendanceScreen({ route, navigation }) {
               <MaterialCommunityIcons name="account-off-outline" size={56} color={COLORS.textMuted} />
               <Text style={styles.emptyText}>No attendees registered</Text>
               <Text style={styles.emptySub}>Students who RSVP will appear here</Text>
-              <Text style={[styles.emptySub, { color: COLORS.indigoLight, marginTop: 4 }]}>
-                Generate a QR code above so students can scan in!
-              </Text>
             </View>
           }
         />
       )}
 
       {/* QR Modal */}
-      <Modal visible={qrModal} transparent animationType="fade" onRequestClose={() => setQrModal(false)}>
+      <Modal visible={qrModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Event QR Code</Text>
-            <Text style={styles.modalSub}>{event?.title}</Text>
-
-            {/* QR visual — rendered as styled token display for web compatibility */}
-            <Animated.View style={[styles.qrDisplay, { transform: [{ scale: pulseAnim }] }]}>
-              <LinearGradient colors={['#4F6EF7','#7C3AED']} style={styles.qrGlow} />
-              <View style={styles.qrInner}>
-                <MaterialCommunityIcons name="qrcode-scan" size={80} color={COLORS.indigo} />
-                <Text style={styles.qrTokenLabel}>Token Active</Text>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Scan to Mark Attendance</Text>
+            {qrToken ? (
+              <View style={styles.qrContainer}>
+                <Image
+                  source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrToken)}` }}
+                  style={{ width: 200, height: 200 }}
+                />
               </View>
-            </Animated.View>
-
-            <Text style={styles.qrTokenText} selectable>{qrToken}</Text>
-            <Text style={styles.qrHint}>
-              Show this screen to students. They tap "Scan" in their app to mark attendance.
-            </Text>
-
-            <TouchableOpacity style={styles.modalClose} onPress={() => setQrModal(false)}>
-              <LinearGradient colors={['#4F6EF7','#7C3AED']} style={StyleSheet.absoluteFill} borderRadius={RADIUS.m} />
+            ) : null}
+            <Text style={styles.modalSub}>This QR code expires in 5 minutes.</Text>
+            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setQrModalVisible(false)}>
               <Text style={styles.modalCloseText}>Close</Text>
             </TouchableOpacity>
           </View>
@@ -234,22 +204,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.5 },
-  headerSub:   { fontSize: 13, color: COLORS.textSecond, marginTop: 2 },
-  qrBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: COLORS.indigo, borderRadius: RADIUS.m,
-    paddingVertical: 8, paddingHorizontal: 14, ...SHADOWS.card,
+  headerSub: { fontSize: 13, color: COLORS.textSecond, marginTop: 2 },
+  statsRow: {
+    flexDirection: 'row', paddingHorizontal: SPACING.l, paddingVertical: SPACING.m,
   },
-  qrBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  statsRow: { flexDirection: 'row', paddingHorizontal: SPACING.l, paddingVertical: SPACING.m },
-  statCard:  { flex: 1, alignItems: 'center' },
+  statCard: { flex: 1, alignItems: 'center' },
   statValue: { fontSize: 24, fontWeight: '800', letterSpacing: -1 },
   statLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', marginTop: 2 },
-  divider:   { height: 1, opacity: 0.25 },
-  center:    { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.m },
+  divider: { height: 1, opacity: 0.25 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.m },
   loadingText: { color: COLORS.textSecond, fontSize: 14 },
   list: { padding: SPACING.l, paddingBottom: 100 },
-  row:  { flexDirection: 'row', alignItems: 'center', gap: SPACING.m, marginBottom: SPACING.s },
+  row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m, marginBottom: SPACING.s },
   rowAvatar: {
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: COLORS.bgElevated, borderWidth: 1, borderColor: COLORS.border,
@@ -270,44 +236,12 @@ const styles = StyleSheet.create({
   markBtnText:    { fontSize: 12, color: COLORS.textSecond, fontWeight: '500' },
   empty: { alignItems: 'center', paddingTop: 60, gap: SPACING.m },
   emptyText: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
-  emptySub:  { fontSize: 14, color: COLORS.textSecond, textAlign: 'center' },
-  // Modal
-  modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent: 'center', alignItems: 'center', padding: SPACING.xl,
-  },
-  modalCard: {
-    backgroundColor: COLORS.bgCard, borderRadius: RADIUS.xl,
-    padding: SPACING.xl, width: '100%', alignItems: 'center',
-    borderWidth: 1, borderColor: COLORS.indigo + '44', ...SHADOWS.card,
-  },
-  modalTitle: { fontSize: 22, fontWeight: '900', color: COLORS.textPrimary, letterSpacing: -0.5 },
-  modalSub:   { fontSize: 14, color: COLORS.textSecond, marginTop: 4, marginBottom: SPACING.l },
-  qrDisplay: {
-    width: 180, height: 180, borderRadius: RADIUS.xl,
-    justifyContent: 'center', alignItems: 'center',
-    marginBottom: SPACING.l, position: 'relative',
-  },
-  qrGlow: {
-    ...StyleSheet.absoluteFillObject, borderRadius: RADIUS.xl, opacity: 0.15,
-  },
-  qrInner: {
-    width: 160, height: 160, borderRadius: RADIUS.l,
-    backgroundColor: COLORS.bgElevated, borderWidth: 2, borderColor: COLORS.indigo + '55',
-    justifyContent: 'center', alignItems: 'center', gap: 8,
-  },
-  qrTokenLabel: { fontSize: 12, color: COLORS.success, fontWeight: '700' },
-  qrTokenText: {
-    fontSize: 11, color: COLORS.textMuted, textAlign: 'center',
-    marginBottom: SPACING.m, fontFamily: 'monospace', letterSpacing: 0.5,
-  },
-  qrHint: {
-    fontSize: 13, color: COLORS.textSecond, textAlign: 'center',
-    lineHeight: 18, marginBottom: SPACING.l,
-  },
-  modalClose: {
-    width: '100%', borderRadius: RADIUS.m, overflow: 'hidden',
-    paddingVertical: 14, alignItems: 'center',
-  },
-  modalCloseText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  emptySub:  { fontSize: 14, color: COLORS.textSecond },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: COLORS.bgCard, padding: SPACING.xl, borderRadius: RADIUS.l, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, width: '80%' },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.l },
+  qrContainer: { padding: SPACING.m, backgroundColor: '#fff', borderRadius: RADIUS.m, marginBottom: SPACING.l },
+  modalSub: { fontSize: 13, color: COLORS.textSecond, marginBottom: SPACING.l, textAlign: 'center' },
+  modalCloseBtn: { backgroundColor: COLORS.bgElevated, paddingVertical: SPACING.m, paddingHorizontal: SPACING.xl, borderRadius: RADIUS.m, borderWidth: 1, borderColor: COLORS.border },
+  modalCloseText: { color: COLORS.textPrimary, fontWeight: '600' },
 });

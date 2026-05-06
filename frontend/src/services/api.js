@@ -4,14 +4,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { initialClubs, initialEvents, initialNotifications, initialBudgets, initialCertificates } from './mockData';
 
-// Real backend base URL (override in Expo via EXPO_PUBLIC_API_BASE_URL)
+// Real backend base URL — hardcoded for production APK reliability
+// EXPO_PUBLIC_API_BASE_URL can override for local dev
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "https://clubsphere-3l9t.onrender.com";
-
-console.log('🌐 [API] Base URL:', API_BASE_URL); // Visible in Expo Go / Metro logs
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // 30s — handles Render free-tier cold-starts (can take 20-25s)
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },

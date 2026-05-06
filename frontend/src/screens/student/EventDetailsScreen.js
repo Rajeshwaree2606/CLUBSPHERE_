@@ -119,11 +119,18 @@ export default function EventDetailsScreen({ route, navigation }) {
 
         {/* CTA */}
         {event.joined ? (
-          <PremiumCard variant="gold" style={{ alignItems: 'center', paddingVertical: SPACING.l }}>
-            <MaterialCommunityIcons name="check-circle" size={36} color={COLORS.success} />
-            <Text style={styles.attendingText}>You're attending this event!</Text>
-            <Text style={styles.attendingSub}>Your spot is confirmed. See you there 🎉</Text>
-          </PremiumCard>
+          <View>
+            <PremiumCard variant="gold" style={{ alignItems: 'center', paddingVertical: SPACING.l, marginBottom: SPACING.m }}>
+              <MaterialCommunityIcons name="check-circle" size={36} color={COLORS.success} />
+              <Text style={styles.attendingText}>You're attending this event!</Text>
+              <Text style={styles.attendingSub}>Your spot is confirmed. See you there 🎉</Text>
+            </PremiumCard>
+            <GradientButton
+              title="Scan QR Attendance"
+              icon="qrcode-scan"
+              onPress={() => navigation.navigate('ScanQR')}
+            />
+          </View>
         ) : (
           <GradientButton
             title="Confirm RSVP"

@@ -12,7 +12,7 @@ import EventsScreen      from '../screens/student/EventsScreen';
 import LeaderboardScreen from '../screens/student/LeaderboardScreen';
 import ProfileScreen     from '../screens/student/ProfileScreen';
 import EventDetailsScreen from '../screens/student/EventDetailsScreen';
-import QRScannerScreen   from '../screens/student/QRScannerScreen';
+import ScanQRScreen from '../screens/student/ScanQRScreen';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -22,6 +22,7 @@ function EventsStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="EventsList"   component={EventsScreen} />
       <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="ScanQR"       component={ScanQRScreen} />
     </Stack.Navigator>
   );
 }
@@ -29,8 +30,8 @@ function EventsStack() {
 const TABS = [
   { name: 'Home',    component: HomeScreen,        icon: 'home-variant',            label: 'Home'    },
   { name: 'Clubs',   component: ClubsScreen,       icon: 'google-circles-extended', label: 'Clubs'   },
-  { name: 'Scan',    component: QRScannerScreen,   icon: 'qrcode-scan',             label: 'Scan'    },
   { name: 'Events',  component: EventsStack,        icon: 'calendar-star',           label: 'Events'  },
+  { name: 'Ranks',   component: LeaderboardScreen,  icon: 'trophy',                  label: 'Ranks'   },
   { name: 'Profile', component: ProfileScreen,      icon: 'account-circle',          label: 'Me'      },
 ];
 
@@ -52,30 +53,16 @@ export default function StudentTabs() {
         ),
         tabBarIcon: ({ color, focused }) => {
           const tab = TABS.find(t => t.name === route.name);
-          const isScan = route.name === 'Scan';
           return (
-            <View style={[
-              styles.iconWrap,
-              focused && styles.iconWrapActive,
-              isScan && styles.scanIconWrap,
-            ]}>
-              {isScan ? (
-                <LinearGradient
-                  colors={['#4F6EF7', '#7C3AED']}
-                  style={[StyleSheet.absoluteFill, { borderRadius: RADIUS.m }]}
-                />
-              ) : focused ? (
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              {focused && (
                 <LinearGradient
                   colors={['rgba(79,110,247,0.2)', 'rgba(79,110,247,0.05)']}
                   style={StyleSheet.absoluteFill}
                   borderRadius={RADIUS.m}
                 />
-              ) : null}
-              <MaterialCommunityIcons
-                name={tab?.icon || 'circle'}
-                size={isScan ? 24 : 22}
-                color={isScan ? '#fff' : color}
-              />
+              )}
+              <MaterialCommunityIcons name={tab?.icon || 'circle'} size={22} color={color} />
             </View>
           );
         },
@@ -111,8 +98,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
   },
   iconWrapActive: { borderWidth: 1, borderColor: 'rgba(79,110,247,0.4)' },
-  scanIconWrap: {
-    width: 44, height: 36, borderRadius: RADIUS.m,
-    shadowColor: '#4F6EF7', shadowOpacity: 0.5, shadowRadius: 8, elevation: 6,
-  },
 });
