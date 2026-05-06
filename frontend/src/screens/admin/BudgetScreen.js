@@ -37,7 +37,7 @@ export default function AdminBudgetScreen() {
     setLoading(true);
     const res = await deleteBudget(recordToDelete);
     setLoading(false); setConfirmVisible(false); setRecordToDelete(null);
-    Toast.show({ type: res.success ? 'success' : 'error', text1: res.success ? 'Record deleted' : 'Delete failed' });
+    Toast.show({ type: res.success ? 'success' : 'error', text1: res.success ? 'Record deleted' : 'Delete failed', text2: res.success ? undefined : (res.message || 'Unknown error') });
   };
 
   const handleSave = async () => {
@@ -56,7 +56,7 @@ export default function AdminBudgetScreen() {
       setModalVisible(false);
       Toast.show({ type: 'success', text1: editingRecord ? 'Transaction updated ✓' : 'Transaction logged ✓' });
     } else {
-      Toast.show({ type: 'error', text1: res.message || 'Operation failed' });
+      Toast.show({ type: 'error', text1: 'Operation failed', text2: res.message || 'Check connection and try again' });
     }
   };
 

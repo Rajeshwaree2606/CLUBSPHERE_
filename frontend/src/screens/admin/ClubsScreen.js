@@ -1,9 +1,8 @@
 import React, { useContext, useState } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  StatusBar,
+  StatusBar, ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
@@ -35,7 +34,7 @@ export default function AdminClubsScreen() {
     setLoadingId(id);
     const res = await joinClub(id);
     setLoadingId(null);
-    Toast.show({ type: res.success ? 'success' : 'error', text1: res.success ? 'Joined club! 🎉' : (res.message || 'Failed to join') });
+    Toast.show({ type: res.success ? 'success' : 'error', text1: res.success ? 'Joined club! 🎉' : 'Join failed', text2: res.success ? undefined : (res.message || 'Unknown error') });
   };
 
   const confirmLeave = async () => {
@@ -50,33 +49,25 @@ export default function AdminClubsScreen() {
     setLoading(true);
     const res = await deleteClub(clubToDelete);
     setLoading(false); setConfirmVisible(false); setClubToDelete(null);
-    Toast.show({ type: res.success ? 'success' : 'error', text1: res.success ? 'Club deleted' : 'Delete failed' });
+    Toast.show({ type: res.success ? 'success' : 'error', text1: res.success ? 'Club deleted' : 'Delete failed', text2: res.success ? undefined : (res.message || 'Unknown error') });
   };
 
   const handleSave = async () => {
-    if (loading) return; // prevent double-tap
-    if (!name.trim()) {
-      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Club name is required.' }); return;
-    }
-    if (!desc.trim()) {
-      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Description is required.' }); return;
+    if (!name.trim() || !desc.trim()) {
+      Toast.show({ type: 'error', text1: 'Missing fields', text2: 'Name and description are required.' }); return;
     }
     setLoading(true);
-    console.log('🏛️ [ClubsScreen] handleSave:', editingClub ? 'edit' : 'create', { name, desc });
     const res = editingClub
       ? await editClub(editingClub.id, { name, description: desc })
       : await createClub({ name, description: desc });
     setLoading(false);
-    console.log('🏛️ [ClubsScreen] result:', res);
     if (res.success) {
       setModalVisible(false);
-      setName(''); setDesc(''); setEditingClub(null);
       Toast.show({ type: 'success', text1: editingClub ? 'Club updated ✓' : 'Club created ✓' });
     } else {
-      Toast.show({ type: 'error', text1: 'Failed', text2: res.message || 'Operation failed' });
+      Toast.show({ type: 'error', text1: 'Operation failed', text2: res.message || 'Check connection and try again' });
     }
   };
-
 
   const renderItem = ({ item }) => (
     <PremiumCard style={styles.card}>
@@ -131,7 +122,7 @@ export default function AdminClubsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+    <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
       {/* Header */}
@@ -198,7 +189,7 @@ export default function AdminClubsScreen() {
         onCancel={() => setLeaveTarget(null)}
         variant="gold"
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -206,14 +197,14 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.l, paddingTop: SPACING.m, paddingBottom: SPACING.l,
+    paddingHorizontal: SPACING.l, paddingTop: SPACING.xxl, paddingBottom: SPACING.l,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   headerTitle: { fontSize: 28, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: -0.8 },
   headerSub:   { fontSize: 13, color: COLORS.textSecond, marginTop: 2 },
   addBtn: { borderRadius: RADIUS.pill, overflow: 'hidden', ...SHADOWS.gold },
   addBtnGrad: { width: 44, height: 44, borderRadius: RADIUS.pill, justifyContent: 'center', alignItems: 'center' },
-  list: { padding: SPACING.l, paddingBottom: 140 },
+  list: { padding: SPACING.l, paddingBottom: 120 },
   card: { marginBottom: SPACING.m },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m, marginBottom: SPACING.m },
   clubInitial: {
