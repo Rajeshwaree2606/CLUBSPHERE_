@@ -44,6 +44,76 @@ const mapEvent = (row) => {
   };
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DEMO EVENTS — shown when backend has 0 events (OJT demo fallback)
+// Each has a pre-set qr_token so QRCodeModal works without any API call.
+// Remove or disable SHOW_DEMO_EVENTS once real event creation is confirmed.
+// ─────────────────────────────────────────────────────────────────────────────
+const SHOW_DEMO_EVENTS = true; // ← set to false to hide demo events
+
+const DEMO_EVENTS = [
+  {
+    id: 'demo-1',
+    clubId: 'demo-club',
+    title: 'Agathon',
+    description: 'AI and innovation challenge for students',
+    venue: 'Lab A',
+    date: '2026-05-06',
+    start_time: '15:00',
+    end_time: '17:00',
+    time: '3:00 PM – 5:00 PM',
+    maxParticipants: 100,
+    joined: false,
+    qr_token: 'CS-DEMO-AGATHON-2026-a1b2c3d4e5f6',
+    event_image: null,
+  },
+  {
+    id: 'demo-2',
+    clubId: 'demo-club',
+    title: 'Vibathon',
+    description: 'Creative tech and design sprint',
+    venue: 'Seminar Hall',
+    date: '2026-05-07',
+    start_time: '10:00',
+    end_time: '12:00',
+    time: '10:00 AM – 12:00 PM',
+    maxParticipants: 100,
+    joined: false,
+    qr_token: 'CS-DEMO-VIBATHON-2026-b2c3d4e5f6a1',
+    event_image: null,
+  },
+  {
+    id: 'demo-3',
+    clubId: 'demo-club',
+    title: 'Hackathon',
+    description: 'Full-day coding and problem-solving event',
+    venue: 'Main Auditorium',
+    date: '2026-05-08',
+    start_time: '09:00',
+    end_time: '17:00',
+    time: '9:00 AM – 5:00 PM',
+    maxParticipants: 100,
+    joined: false,
+    qr_token: 'CS-DEMO-HACKATHON-2026-c3d4e5f6a1b2',
+    event_image: null,
+  },
+  {
+    id: 'demo-4',
+    clubId: 'demo-club',
+    title: 'Tech Talk',
+    description: 'Expert session on AI, open source, and careers',
+    venue: 'Lab B',
+    date: '2026-05-09',
+    start_time: '14:00',
+    end_time: '16:00',
+    time: '2:00 PM – 4:00 PM',
+    maxParticipants: 100,
+    joined: false,
+    qr_token: 'CS-DEMO-TECHTALK-2026-d4e5f6a1b2c3',
+    event_image: null,
+  },
+];
+
 const mapAnnouncement = (row) => {
   if (!row) return null;
   return {
@@ -117,9 +187,34 @@ export const DataProvider = ({ children }) => {
       }
     };
 
+    // Fetch events separately so we can inject demo events when backend is empty
+    const fetchEvents = async () => {
+      try {
+        const res = await api.get('/api/events');
+        const backendEvents = (unwrap(res) || []).map(mapEvent).filter(Boolean);
+        if (SHOW_DEMO_EVENTS && backendEvents.length === 0) {
+          console.log('ℹ️ [DataContext] Backend has 0 events — injecting DEMO_EVENTS for OJT demo');
+          setEvents(DEMO_EVENTS);
+        } else if (SHOW_DEMO_EVENTS) {
+          // Merge: real events first, then any demo event not already present
+          const realIds = new Set(backendEvents.map(e => e.id));
+          const extras = DEMO_EVENTS.filter(d => !realIds.has(d.id));
+          setEvents([...backendEvents, ...extras]);
+        } else {
+          setEvents(backendEvents);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch /api/events:', err.message);
+        if (SHOW_DEMO_EVENTS) {
+          console.log('ℹ️ [DataContext] Events fetch failed — using DEMO_EVENTS as fallback');
+          setEvents(DEMO_EVENTS);
+        }
+      }
+    };
+
     await Promise.all([
       fetchItem('/api/clubs', mapClub, setClubs),
-      fetchItem('/api/events', mapEvent, setEvents),
+      fetchEvents(),
       fetchItem('/api/announcements', mapAnnouncement, setNotifications),
       fetchItem('/api/budgets', mapBudget, setBudgets),
       fetchItem('/api/leaderboard', mapLeaderboard, setLeaderboard),

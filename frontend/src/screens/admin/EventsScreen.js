@@ -60,7 +60,14 @@ export default function AdminEventsScreen({ navigation }) {
     setModalVisible(true);
   };
 
-  const askDelete = id => { setEventToDelete(id); setConfirmVisible(true); };
+  const askDelete = (id) => {
+    if (String(id).startsWith('demo-')) {
+      Toast.show({ type: 'info', text1: 'Demo Event', text2: 'Demo events cannot be deleted.' });
+      return;
+    }
+    setEventToDelete(id);
+    setConfirmVisible(true);
+  };
 
   const confirmDelete = async () => {
     setLoading(true);
@@ -193,7 +200,8 @@ export default function AdminEventsScreen({ navigation }) {
   // ────────────────────────────────────────────────────────────────────────────
 
   const renderItem = ({ item }) => {
-    const clubName = clubs.find(c => c.id === item.clubId)?.name || 'General';
+    const clubName = clubs.find(c => c.id === item.clubId)?.name
+      || (item.clubId === 'demo-club' ? 'Coding Club' : 'General');
     const timeRange = item.start_time
       ? `${item.start_time}${item.end_time ? ' – ' + item.end_time : ''}`
       : null;
